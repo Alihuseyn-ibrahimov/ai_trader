@@ -12,9 +12,10 @@ hesabat) sonrakı fazalarda əlavə olunacaq. Əsas: **Freqtrade**.
 - **Faza 0 — Backtest.** Real pul YOXDUR, API açarı YOXDUR, bot daimi işləmir.
 - Phase 0.1 (mühit) tamamdır: Freqtrade `2026.9` Docker-də işləyir, `config.json`
   validasiyadan keçir.
-- Phase 0.2: data yükləndi (istifadəçinin kompüterində, 2026-10-08) — BTC/USDT,
-  ETH/USDT × 1h/4h/1d. Keyfiyyət yoxlaması: `tools/data_quality.py`.
-- Phase 0.3: baseline skripti hazırdır: `tools/baseline.py`.
+- Phase 0.2 ✅: data yükləndi (istifadəçinin kompüterində) və yoxlandı — yalnız
+  1 boşluq (2023-03-24 13:00, 1h). Data `user_data/data/` qovluğundadır, git-ə girmir.
+- Phase 0.3 ✅: BASELINE `findings.md`-də (OOS 50/50: −15.4% xalis, DD 60%).
+- Növbəti: Phase 0.4 — risk modulu (TDD).
 
 ## Pozulmaz qaydalar
 
