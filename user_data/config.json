@@ -71,5 +71,11 @@
     "initial_state": "stopped",
     "internals": {
         "process_throttle_secs": 5
+    },
+    "ai_risk": {
+        "risk_per_trade": 0.01,
+        "daily_loss_limit": 0.03,
+        "floor_ratio": 0.7,
+        "max_open_trades": 2
     }
 }

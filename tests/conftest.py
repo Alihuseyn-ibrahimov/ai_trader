@@ -3,4 +3,7 @@ from pathlib import Path
 
 # tools/ qovluğu paket deyil — konteynerdə skript kimi işlədilir. Testlər üçün
 # yola əlavə edirik.
-sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "tools"))
+ROOT = Path(__file__).resolve().parent.parent
+sys.path.insert(0, str(ROOT / "tools"))
+# `risk` paketi ai_trader/ altındadır (konteynerdə /freqtrade/risk)
+sys.path.insert(0, str(ROOT))

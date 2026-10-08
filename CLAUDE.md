@@ -15,7 +15,8 @@ hesabat) sonrakı fazalarda əlavə olunacaq. Əsas: **Freqtrade**.
 - Phase 0.2 ✅: data yükləndi (istifadəçinin kompüterində) və yoxlandı — yalnız
   1 boşluq (2023-03-24 13:00, 1h). Data `user_data/data/` qovluğundadır, git-ə girmir.
 - Phase 0.3 ✅: BASELINE `findings.md`-də (OOS 50/50: −15.4% xalis, DD 60%).
-- Növbəti: Phase 0.4 — risk modulu (TDD).
+- Phase 0.4: risk modulu + `RiskManagedStrategy` + audit skripti hazırdır
+  (75 test konteynerdə keçir). Qalan: istifadəçinin smoke backtest-i və audit.
 
 ## Pozulmaz qaydalar
 
@@ -48,16 +49,37 @@ ai_trader/
 ├── tools/                    # analiz skriptləri, konteynerdə /freqtrade/tools (ro)
 │   ├── data_quality.py       # boşluq, dublikat, OHLC, sıfır həcm yoxlaması
 │   └── baseline.py           # buy & hold: gəlir, xalis gəlir, DD, volatillik
+│   └── risk_audit.py         # backtest nəticəsində risk qaydalarının yoxlanması
+├── risk/                     # SAF Python risk modulu, konteynerdə /freqtrade/risk (ro)
+│   └── limits.py             # RiskConfig, position_size, check_entry, floor/daily
 ├── tests/                    # pytest, konteynerdə /freqtrade/ai_tests (ro)
 └── user_data/
     ├── config.json           # spot, dry_run, BTC/USDT + ETH/USDT, açarsız
-    ├── strategies/           # strategiyalar (Phase 0.5)
+    ├── strategies/
+    │   ├── risk_managed.py   # BAZA SİNİF — bütün strategiyalar bundan törəməlidir
+    │   └── risk_smoke_test.py# yalnız risk mexanikasının sınağı, strategiya DEYİL
     ├── data/                 # tarixi data — git-ə girmir
     ├── backtest_results/     # git-ə girmir
     └── logs/                 # git-ə girmir
 ```
 
-`risk/` (saf Python risk modulu + pytest) Phase 0.4-də əlavə olunacaq.
+### Risk arxitekturası
+
+- `config.json` → `ai_risk`: `risk_per_trade` 1%, `daily_loss_limit` 3%,
+  `floor_ratio` 0.7 (alt xətt = başlanğıc kapitalın 70%-i), `max_open_trades` 2.
+  Naməlum açar (yazı səhvi) → bot başlamır. Sərt tavanlar kodda: risk ≤ 5%, gündəlik ≤ 10%.
+- `RiskManagedStrategy`: `custom_stake_amount` (mövqe ölçüsü), `confirm_trade_entry`
+  (veto: alt xətt → gündəlik itki → mövqe sayı), `custom_exit` (kill switch),
+  `protections` (CooldownPeriod, StoplossGuard, MaxDrawdown).
+- **Fail closed:** Freqtrade callback xətasında default-a qayıdır (stake = bütün
+  balans, confirm = True). Ona görə hər callback xətanı özü tutur və girişi bloklayır.
+  Bu qaydanı pozma.
+- Stop-u ATR və s. ilə hesablayan strategiya `stop_price()` və `custom_stoploss`-u
+  **eyni** qiymətə uyğun override etməlidir, əks halda mövqe ölçüsü yanlış olar.
+- Məhdudiyyətlər (Faza 0 üçün qəbul olunub): kapital reallaşmış PnL ilə ölçülür
+  (açıq mövqelərin cari zərəri yalnız kill switch-də nəzərə alınır); gündəlik
+  limit də reallaşmış PnL-ə əsaslanır; qiymət stopdan boşluqla keçərsə faktiki
+  itki 1%-dən çox ola bilər — `risk_audit.py` bunu "ən pis faktiki itki" kimi göstərir.
 
 ## Əmrlər
 
@@ -93,6 +115,15 @@ PowerShell-də sətir davamı `\` **deyil**, backtick-dir (`` ` ``). Ən təhlü
 cd "C:\Users\Alihuseyn Ibrahimov\PycharmProjects\Quantum\ai_trader"
 docker compose run --rm freqtrade download-data --config user_data/config.json --timerange 20230101-20260930 --timeframes 1h 4h 1d
 ```
+
+### Risk smoke backtest (yalnız IS dövrü)
+
+```powershell
+docker compose run --rm freqtrade backtesting --config user_data/config.json --strategy RiskSmokeTest --timerange 20230101-20230701 --fee 0.0015 --enable-protections --export trades
+docker compose run --rm --entrypoint python freqtrade /freqtrade/tools/risk_audit.py RiskSmokeTest
+```
+
+`--enable-protections` olmadan backtest protections-ı nəzərə almır.
 
 ### Analiz skriptləri və testlər (PowerShell, bir sətir)
 
