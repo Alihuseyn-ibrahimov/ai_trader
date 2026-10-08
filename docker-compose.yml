@@ -7,6 +7,9 @@ services:
     container_name: ai_trader_freqtrade
     volumes:
       - "./user_data:/freqtrade/user_data"
+      # Analiz skriptləri (data keyfiyyəti, baseline) — yalnız oxumaq üçün
+      - "./tools:/freqtrade/tools:ro"
+      - "./tests:/freqtrade/ai_tests:ro"
     # Faza 0: yalnız backtest, bot daimi işləmir. Əmrlər `docker compose run --rm` ilə.
     command: >
       --version

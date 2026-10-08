@@ -12,7 +12,9 @@ hesabat) sonrakı fazalarda əlavə olunacaq. Əsas: **Freqtrade**.
 - **Faza 0 — Backtest.** Real pul YOXDUR, API açarı YOXDUR, bot daimi işləmir.
 - Phase 0.1 (mühit) tamamdır: Freqtrade `2026.9` Docker-də işləyir, `config.json`
   validasiyadan keçir.
-- Növbəti: Phase 0.2 — BTC/USDT, ETH/USDT tarixi datasının yüklənməsi.
+- Phase 0.2: data yükləndi (istifadəçinin kompüterində, 2026-10-08) — BTC/USDT,
+  ETH/USDT × 1h/4h/1d. Keyfiyyət yoxlaması: `tools/data_quality.py`.
+- Phase 0.3: baseline skripti hazırdır: `tools/baseline.py`.
 
 ## Pozulmaz qaydalar
 
@@ -42,6 +44,10 @@ hesabat) sonrakı fazalarda əlavə olunacaq. Əsas: **Freqtrade**.
 ai_trader/
 ├── CLAUDE.md
 ├── docker-compose.yml        # Freqtrade 2026.9 (versiya sabitdir)
+├── tools/                    # analiz skriptləri, konteynerdə /freqtrade/tools (ro)
+│   ├── data_quality.py       # boşluq, dublikat, OHLC, sıfır həcm yoxlaması
+│   └── baseline.py           # buy & hold: gəlir, xalis gəlir, DD, volatillik
+├── tests/                    # pytest, konteynerdə /freqtrade/ai_tests (ro)
 └── user_data/
     ├── config.json           # spot, dry_run, BTC/USDT + ETH/USDT, açarsız
     ├── strategies/           # strategiyalar (Phase 0.5)
@@ -86,6 +92,17 @@ PowerShell-də sətir davamı `\` **deyil**, backtick-dir (`` ` ``). Ən təhlü
 cd "C:\Users\Alihuseyn Ibrahimov\PycharmProjects\Quantum\ai_trader"
 docker compose run --rm freqtrade download-data --config user_data/config.json --timerange 20230101-20260930 --timeframes 1h 4h 1d
 ```
+
+### Analiz skriptləri və testlər (PowerShell, bir sətir)
+
+```powershell
+docker compose run --rm --entrypoint python freqtrade /freqtrade/tools/data_quality.py
+docker compose run --rm --entrypoint python freqtrade /freqtrade/tools/baseline.py
+docker compose run --rm --entrypoint sh freqtrade -c "pip install -q --user pytest && python -m pytest -q -p no:cacheprovider -c /dev/null --rootdir /freqtrade/ai_tests /freqtrade/ai_tests"
+```
+
+Testlərdə `-c /dev/null` vacibdir: Freqtrade image-inin öz `pyproject.toml`-u
+pytest-ə `--dist` parametri ötürür və testlər işə düşmür.
 
 ## Bilinən problemlər
 
