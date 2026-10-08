@@ -76,7 +76,23 @@ docker compose run --rm freqtrade backtesting --config user_data/config.json \
   --strategy <Ad> --timerange 20230101-20241231 --fee 0.0015
 ```
 
+### PowerShell (istifadəçinin terminalı)
+
+PowerShell-də sətir davamı `\` **deyil**, backtick-dir (`` ` ``). Ən təhlükəsizi
+əmri **bir sətirdə** yazmaqdır. Əmrlər mütləq `ai_trader` qovluğundan işlədilir,
+əks halda `no configuration file provided: not found` xətası çıxır.
+
+```powershell
+cd "C:\Users\Alihuseyn Ibrahimov\PycharmProjects\Quantum\ai_trader"
+docker compose run --rm freqtrade download-data --config user_data/config.json --timerange 20230101-20260930 --timeframes 1h 4h 1d
+```
+
 ## Bilinən problemlər
+
+- `no configuration file provided: not found` → əmr `ai_trader/` qovluğundan
+  kənarda işlədilib (`docker-compose.yml` cari qovluqda olmalıdır).
+- PowerShell: `Missing expression after unary operator '--'` → `\` ilə sətir
+  bölünüb. Əmri bir sətirdə yaz.
 
 - `config.json`-da `api_server` bloku yarımçıq yazılsa validasiya düşür
   (`'listen_ip_address' is a required property`). Faza 0-da `api_server`
