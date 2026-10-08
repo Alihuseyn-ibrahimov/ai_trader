@@ -89,6 +89,16 @@ docker compose run --rm freqtrade download-data --config user_data/config.json -
 
 ## Bilinən problemlər
 
+- **Azərbaycandan (istifadəçinin şəbəkəsi) `api.binance.com` bloklanıb**: TLS
+  handshake zamanı `ConnectionResetError`. Açıq olanlar: `data-api.binance.vision`
+  (Binance-in rəsmi publik market-data endpoint-i) və `data.binance.vision`
+  (tarixi arxiv). Ona görə `config.json`-da `exchange.ccxt_config`:
+  - `urls.api.public` → `https://data-api.binance.vision/api/v3`
+  - `options.fetchMarkets.types` → `["spot"]` (futures endpoint-ləri bağlıdır və
+    lazım deyil)
+  Bu yalnız **publik data** üçündür. Faza 2-də real ticarət üçün (açarlı, private
+  API) bu yol işləməyəcək. Onda bot Binance-ə çıxışı olan serverdə (VPS) işləməlidir.
+
 - `no configuration file provided: not found` → əmr `ai_trader/` qovluğundan
   kənarda işlədilib (`docker-compose.yml` cari qovluqda olmalıdır).
 - PowerShell: `Missing expression after unary operator '--'` → `\` ilə sətir
