@@ -1,0 +1,12 @@
+# Freqtrade versiyası qəsdən sabitlənib (`latest`/`stable` yox) — backtest
+# nəticələri versiyalar arasında müqayisə oluna bilsin.
+services:
+  freqtrade:
+    image: freqtradeorg/freqtrade:2026.9
+    restart: "no"
+    container_name: ai_trader_freqtrade
+    volumes:
+      - "./user_data:/freqtrade/user_data"
+    # Faza 0: yalnız backtest, bot daimi işləmir. Əmrlər `docker compose run --rm` ilə.
+    command: >
+      --version
