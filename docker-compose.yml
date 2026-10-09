@@ -12,6 +12,8 @@ services:
       - "./tests:/freqtrade/ai_tests:ro"
       # Risk modulu — strategiyalar /freqtrade/risk-dən import edir
       - "./risk:/freqtrade/risk:ro"
+      # Siqnal məntiqi (indikatorlar, giriş/çıxış qaydaları)
+      - "./signals:/freqtrade/signals:ro"
     # Faza 0: yalnız backtest, bot daimi işləmir. Əmrlər `docker compose run --rm` ilə.
     command: >
       --version

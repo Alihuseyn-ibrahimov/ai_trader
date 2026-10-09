@@ -6,7 +6,7 @@ from risk_audit import audit_trades
 FEE = 0.0015
 
 
-def trade(open_, close, stake, open_rate, stop, profit, reason="exit_signal"):
+def trade(open_, close, stake, open_rate, stop, profit, reason="exit_signal", tag=None):
     return {
         "pair": "BTC/USDT",
         "open_date": pd.Timestamp(open_, tz="UTC"),
@@ -19,6 +19,7 @@ def trade(open_, close, stake, open_rate, stop, profit, reason="exit_signal"):
         "fee_close": FEE,
         "profit_abs": profit,
         "exit_reason": reason,
+        "enter_tag": tag,
     }
 
 
@@ -92,3 +93,10 @@ def test_exit_reasons_counted():
 def test_empty_trades():
     r = run([])
     assert r["n_trades"] == 0
+
+
+def test_planned_stop_taken_from_enter_tag_when_present():
+    # Freqtrade initial_stop_loss_abs sabit backstop-dur (məs. -15% → 85);
+    # əsl planlaşdırılan stop tag-dadır: 100 - 5 = 95
+    r = run([trade("2023-01-01", "2023-01-02", 180, 100, 85, 0, tag="trend|sd=5")])
+    assert r["max_planned_risk"] == pytest.approx((1.8 * 5 + 1.8 * 100 * FEE + 1.8 * 95 * FEE) / 1000)

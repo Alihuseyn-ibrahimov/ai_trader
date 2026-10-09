@@ -19,6 +19,11 @@ from pathlib import Path
 
 import pandas as pd
 
+# signals/ paketi tools/-un yanındadır (konteynerdə /freqtrade/signals)
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+
+from signals.tags import parse_stop_dist  # noqa: E402
+
 TOLERANCE = 1e-6
 CONFIG = Path("/freqtrade/user_data/config.json")
 RESULTS_DIR = Path("/freqtrade/user_data/backtest_results")
@@ -52,10 +57,15 @@ def audit_trades(
         starting_balance + trades.loc[trades["close_date"] <= row.open_date, "profit_abs"].sum()
         for row in trades.itertuples()
     ]
+    # Planlaşdırılan stop: tag-da ATR məsafəsi varsa ondan, yoxdursa Freqtrade-in
+    # ilkin stopundan (custom_stoploss istifadə edəndə o yalnız sabit backstop-dur)
+    tags = trades["enter_tag"] if "enter_tag" in trades else pd.Series([None] * len(trades))
+    dist = tags.map(parse_stop_dist)
+    stop = (trades["open_rate"] - dist).where(dist.notna(), trades["initial_stop_loss_abs"])
     planned_loss = (
-        trades["amount"] * (trades["open_rate"] - trades["initial_stop_loss_abs"])
+        trades["amount"] * (trades["open_rate"] - stop)
         + trades["amount"] * trades["open_rate"] * trades["fee_open"]
-        + trades["amount"] * trades["initial_stop_loss_abs"] * trades["fee_close"]
+        + trades["amount"] * stop * trades["fee_close"]
     )
     eq = pd.Series(equity_at_open)
     planned_ratio = planned_loss / eq

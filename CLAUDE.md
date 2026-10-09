@@ -17,7 +17,8 @@ hesabat) sonrakı fazalarda əlavə olunacaq. Əsas: **Freqtrade**.
 - Phase 0.3 ✅: BASELINE `findings.md`-də (OOS 50/50: −15.4% xalis, DD 60%).
 - Phase 0.4 ✅: risk modulu + `RiskManagedStrategy` + audit. Smoke backtest
   (91 əməliyyat) auditdən keçdi: maks. planlaşdırılan risk 0.990%, alt xətt pozulmayıb.
-- Növbəti: Phase 0.5 — iki strategiya (yalnız IS datası).
+- Phase 0.5: iki strategiya yazıldı və test edildi — `TrendEmaAtr` (4h),
+  `MeanRevRsiBb` (1h). Qalan: istifadəçinin IS backtest-i, auditi, lookahead analizi.
 
 ## Pozulmaz qaydalar
 
@@ -51,6 +52,11 @@ ai_trader/
 │   ├── data_quality.py       # boşluq, dublikat, OHLC, sıfır həcm yoxlaması
 │   └── baseline.py           # buy & hold: gəlir, xalis gəlir, DD, volatillik
 │   └── risk_audit.py         # backtest nəticəsində risk qaydalarının yoxlanması
+├── signals/                  # SAF pandas siqnal məntiqi, konteynerdə /freqtrade/signals (ro)
+│   ├── indicators.py         # ema, atr (Wilder), rsi (Wilder), bollinger (ddof=0)
+│   ├── tags.py               # enter_tag-da stop məsafəsi: "ad|sd=<məsafə>"
+│   ├── trend.py              # Strategiya A qaydaları
+│   └── meanrev.py            # Strategiya B qaydaları
 ├── risk/                     # SAF Python risk modulu, konteynerdə /freqtrade/risk (ro)
 │   └── limits.py             # RiskConfig, position_size, check_entry, floor/daily
 ├── tests/                    # pytest, konteynerdə /freqtrade/ai_tests (ro)
@@ -58,7 +64,9 @@ ai_trader/
     ├── config.json           # spot, dry_run, BTC/USDT + ETH/USDT, açarsız
     ├── strategies/
     │   ├── risk_managed.py   # BAZA SİNİF — bütün strategiyalar bundan törəməlidir
-    │   └── risk_smoke_test.py# yalnız risk mexanikasının sınağı, strategiya DEYİL
+    │   ├── risk_smoke_test.py# yalnız risk mexanikasının sınağı, strategiya DEYİL
+    │   ├── trend_ema_atr.py  # A: TrendEmaAtr (4h)
+    │   └── meanrev_rsi_bb.py # B: MeanRevRsiBb (1h)
     ├── data/                 # tarixi data — git-ə girmir
     ├── backtest_results/     # git-ə girmir
     └── logs/                 # git-ə girmir
@@ -75,8 +83,12 @@ ai_trader/
 - **Fail closed:** Freqtrade callback xətasında default-a qayıdır (stake = bütün
   balans, confirm = True). Ona görə hər callback xətanı özü tutur və girişi bloklayır.
   Bu qaydanı pozma.
-- Stop-u ATR və s. ilə hesablayan strategiya `stop_price()` və `custom_stoploss`-u
-  **eyni** qiymətə uyğun override etməlidir, əks halda mövqe ölçüsü yanlış olar.
+- **ATR stopu üçün tək mənbə — `enter_tag`:** siqnal `"ad|sd=<məsafə>"` yazır;
+  `custom_stake_amount` (mövqe ölçüsü), `custom_stoploss` (stop) və
+  `risk_audit.py` (yoxlama) eyni dəyəri oxuyur. Səbəb: Freqtrade-in
+  `initial_stop_loss_abs`-u yalnız sabit `stoploss`-dan (backstop) yazılır.
+- Strategiya faylı yalnız siqnal modulunu çağırır; qaydalar `signals/`-dadır və
+  lokal test olunur. Parametrlər `params` atributundadır və testlə sabitlənib.
 - Məhdudiyyətlər (Faza 0 üçün qəbul olunub): kapital reallaşmış PnL ilə ölçülür
   (açıq mövqelərin cari zərəri yalnız kill switch-də nəzərə alınır); gündəlik
   limit də reallaşmış PnL-ə əsaslanır; qiymət stopdan boşluqla keçərsə faktiki
@@ -125,6 +137,17 @@ docker compose run --rm --entrypoint python freqtrade /freqtrade/tools/risk_audi
 ```
 
 `--enable-protections` olmadan backtest protections-ı nəzərə almır.
+
+### Strategiya IS backtest-i (Phase 0.5) — OOS-a TOXUNMA
+
+```powershell
+docker compose run --rm freqtrade backtesting --config user_data/config.json --strategy TrendEmaAtr --timerange 20230101-20250101 --fee 0.0015 --enable-protections --export trades
+docker compose run --rm --entrypoint python freqtrade /freqtrade/tools/risk_audit.py TrendEmaAtr
+docker compose run --rm freqtrade lookahead-analysis --config user_data/config.json --strategy TrendEmaAtr --timerange 20230101-20250101
+```
+
+(`MeanRevRsiBb` üçün eyni.) `startup_candle_count=400` olduğu üçün backtest
+datanın əvvəlindən 400 şam sonra başlayır (4h: ~2023-03-08, 1h: ~2023-01-17).
 
 ### Analiz skriptləri və testlər (PowerShell, bir sətir)
 

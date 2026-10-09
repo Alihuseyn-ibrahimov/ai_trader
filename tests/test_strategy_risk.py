@@ -14,6 +14,7 @@ pytest.importorskip("freqtrade")
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "user_data" / "strategies"))
 
+from freqtrade.strategy import stoploss_from_absolute  # noqa: E402
 from risk import position_size  # noqa: E402
 from risk_managed import ASSUMED_FEE, RiskManagedStrategy  # noqa: E402
 
@@ -62,10 +63,10 @@ def make(equity=1000.0, open_trades=0, risk=None):
     return s
 
 
-def stake(s, rate=100.0, max_stake=10_000.0):
+def stake(s, rate=100.0, max_stake=10_000.0, entry_tag=None):
     return s.custom_stake_amount(
         pair="BTC/USDT", current_time=T0_LATER, current_rate=rate, proposed_stake=999.0,
-        min_stake=5.0, max_stake=max_stake, leverage=1.0, entry_tag=None, side="long",
+        min_stake=5.0, max_stake=max_stake, leverage=1.0, entry_tag=entry_tag, side="long",
     )
 
 
@@ -88,11 +89,38 @@ class TestStake:
 
     def test_fail_closed_on_error(self):
         s = make()
-        s.stop_price = lambda pair, rate: rate * 2  # səhv: stop girişdən yuxarı
+        s.stop_price = lambda pair, rate, entry_tag=None: rate * 2  # səhv: stop girişdən yuxarı
         assert stake(s) == 0.0
 
     def test_zero_at_floor(self):
         assert stake(make(equity=700.0)) == 0.0
+
+
+    def test_stop_distance_from_entry_tag(self):
+        # ATR stopu: tag-dakı məsafə (10) → stop 90, sabit stoploss (-5%) yox
+        expected = position_size(1000, 100, 90, 0.01, fee=ASSUMED_FEE, floor=700)
+        assert stake(make(), entry_tag="trend|sd=10") == pytest.approx(expected)
+
+
+class TestCustomStoploss:
+    def call(self, s, trade, rate):
+        return s.custom_stoploss("BTC/USDT", trade, T0_LATER, rate, 0.0, after_fill=False)
+
+    def test_fixed_atr_stop_from_tag(self):
+        s = make()
+        trade = SimpleNamespace(open_rate=100.0, max_rate=120.0, enter_tag="meanrev|sd=10")
+        assert self.call(s, trade, 110.0) == pytest.approx(stoploss_from_absolute(90.0, 110.0))
+
+    def test_trailing_atr_stop_follows_max_rate(self):
+        s = make()
+        s.atr_trailing = True
+        trade = SimpleNamespace(open_rate=100.0, max_rate=120.0, enter_tag="trend|sd=10")
+        # stop = max(100-10, 120-10) = 110
+        assert self.call(s, trade, 115.0) == pytest.approx(stoploss_from_absolute(110.0, 115.0))
+
+    def test_without_tag_keeps_static_stoploss(self):
+        trade = SimpleNamespace(open_rate=100.0, max_rate=120.0, enter_tag=None)
+        assert self.call(make(), trade, 110.0) is None
 
 
 class TestConfirmEntry:

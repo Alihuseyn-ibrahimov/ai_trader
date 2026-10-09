@@ -20,7 +20,7 @@ from datetime import datetime
 from pathlib import Path
 
 from freqtrade.persistence import Trade
-from freqtrade.strategy import IStrategy
+from freqtrade.strategy import IStrategy, stoploss_from_absolute
 
 # ai_trader/ kökü: lokal repo-da ai_trader/, konteynerdə /freqtrade (risk/ ora qoşulub)
 _AI_ROOT = Path(__file__).resolve().parents[2]
@@ -28,6 +28,7 @@ if str(_AI_ROOT) not in sys.path:
     sys.path.insert(0, str(_AI_ROOT))
 
 from risk import RiskConfig, check_entry, floor_breached, position_size  # noqa: E402
+from signals.tags import parse_stop_dist  # noqa: E402
 
 logger = logging.getLogger(__name__)
 
@@ -38,6 +39,9 @@ ASSUMED_FEE = 0.0015
 class RiskManagedStrategy(IStrategy):
     INTERFACE_VERSION = 3
     can_short = False  # spot: short yoxdur
+    # True: ATR stopu ən yüksək qiymətin arxasınca gedir (chandelier). Yalnız
+    # enter_tag-da stop məsafəsi olan əməliyyatlara aid; use_custom_stoploss lazımdır.
+    atr_trailing = False
 
     def bot_start(self, **kwargs) -> None:
         self.risk_config = RiskConfig.from_dict(self.config.get("ai_risk", {}))
@@ -82,9 +86,12 @@ class RiskManagedStrategy(IStrategy):
     def _open_trade_count(self) -> int:
         return Trade.get_open_trade_count()
 
-    def stop_price(self, pair: str, rate: float) -> float:
-        """Girişdə gözlənilən stop qiyməti. ATR və s. istifadə edən alt sinif bunu
-        və `custom_stoploss`-u **eyni** qiymətə uyğun override etməlidir."""
+    def stop_price(self, pair: str, rate: float, entry_tag: str | None = None) -> float:
+        """Girişdə planlaşdırılan stop. Tag-da stop məsafəsi varsa (ATR) — o,
+        yoxdursa sabit `stoploss`. `custom_stoploss` və audit eyni mənbəni oxuyur."""
+        dist = parse_stop_dist(entry_tag)
+        if dist is not None:
+            return rate - dist
         return rate * (1 + self.stoploss)
 
     # --- Freqtrade callback-ları ---
@@ -101,7 +108,7 @@ class RiskManagedStrategy(IStrategy):
             stake = position_size(
                 equity=self._equity(),
                 entry=current_rate,
-                stop=self.stop_price(pair, current_rate),
+                stop=self.stop_price(pair, current_rate, entry_tag),
                 risk_pct=self.risk_config.risk_per_trade,
                 fee=ASSUMED_FEE,
                 floor=self._floor(),
@@ -129,6 +136,17 @@ class RiskManagedStrategy(IStrategy):
             self.risk_vetoes[decision.reason] += 1
             logger.info("Risk vetosu: %s %s (%s)", pair, current_time, decision.reason)
         return decision.allowed
+
+    def custom_stoploss(self, pair, trade, current_time, current_rate, current_profit,
+                        after_fill, **kwargs):
+        """ATR stopu (tag-dan). Tag yoxdursa None → sabit `stoploss` qalır."""
+        dist = parse_stop_dist(trade.enter_tag)
+        if dist is None:
+            return None
+        stop_abs = trade.open_rate - dist
+        if self.atr_trailing:
+            stop_abs = max(stop_abs, trade.max_rate - dist)
+        return stoploss_from_absolute(stop_abs, current_rate, is_short=False, leverage=1.0)
 
     def custom_exit(self, pair, trade, current_time, current_rate, current_profit, **kwargs):
         """Kill switch: reallaşmış kapital + bu mövqenin cari zərəri alt xəttə çatsa — çıx."""
