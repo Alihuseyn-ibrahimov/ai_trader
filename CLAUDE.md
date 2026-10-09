@@ -15,8 +15,9 @@ hesabat) sonrakı fazalarda əlavə olunacaq. Əsas: **Freqtrade**.
 - Phase 0.2 ✅: data yükləndi (istifadəçinin kompüterində) və yoxlandı — yalnız
   1 boşluq (2023-03-24 13:00, 1h). Data `user_data/data/` qovluğundadır, git-ə girmir.
 - Phase 0.3 ✅: BASELINE `findings.md`-də (OOS 50/50: −15.4% xalis, DD 60%).
-- Phase 0.4: risk modulu + `RiskManagedStrategy` + audit skripti hazırdır
-  (75 test konteynerdə keçir). Qalan: istifadəçinin smoke backtest-i və audit.
+- Phase 0.4 ✅: risk modulu + `RiskManagedStrategy` + audit. Smoke backtest
+  (91 əməliyyat) auditdən keçdi: maks. planlaşdırılan risk 0.990%, alt xətt pozulmayıb.
+- Növbəti: Phase 0.5 — iki strategiya (yalnız IS datası).
 
 ## Pozulmaz qaydalar
 
@@ -137,6 +138,10 @@ Testlərdə `-c /dev/null` vacibdir: Freqtrade image-inin öz `pyproject.toml`-u
 pytest-ə `--dist` parametri ötürür və testlər işə düşmür.
 
 ## Bilinən problemlər
+
+- **`config.json`-a `timeframe` YAZMA.** Freqtrade onu strategiyanın öz
+  timeframe-inin üstünə yazır (2026-10-09: 1h smoke strategiya 4h-da işlədi).
+  Hər strategiya öz `timeframe`-ini təyin edir. `tests/test_config.py` bunu yoxlayır.
 
 - **Azərbaycandan (istifadəçinin şəbəkəsi) `api.binance.com` bloklanıb**: TLS
   handshake zamanı `ConnectionResetError`. Açıq olanlar: `data-api.binance.vision`

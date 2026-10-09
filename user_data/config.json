@@ -9,7 +9,6 @@
     "stake_amount": "unlimited",
     "tradable_balance_ratio": 0.99,
     "max_open_trades": 2,
-    "timeframe": "4h",
     "fiat_display_currency": "USD",
     "cancel_open_orders_on_exit": false,
     "unfilledtimeout": {
