@@ -139,13 +139,21 @@ class RiskManagedStrategy(IStrategy):
 
     def custom_stoploss(self, pair, trade, current_time, current_rate, current_profit,
                         after_fill, **kwargs):
-        """ATR stopu (tag-dan). Tag yoxdursa None → sabit `stoploss` qalır."""
+        """ATR stopu (tag-dan). Tag yoxdursa None → sabit `stoploss` qalır.
+
+        Girişdən dərhal sonra (after_fill) `trade.max_rate` None ola bilər. Trailing
+        hesabında xəta olsa, ilkin ATR stopuna qayıdırıq — geniş backstop-a yox.
+        """
         dist = parse_stop_dist(trade.enter_tag)
         if dist is None:
             return None
         stop_abs = trade.open_rate - dist
         if self.atr_trailing:
-            stop_abs = max(stop_abs, trade.max_rate - dist)
+            try:
+                peak = trade.max_rate if trade.max_rate is not None else trade.open_rate
+                stop_abs = max(stop_abs, peak - dist)
+            except Exception:
+                logger.exception("Trailing stop xətası — ilkin ATR stopu saxlanılır (%s)", pair)
         return stoploss_from_absolute(stop_abs, current_rate, is_short=False, leverage=1.0)
 
     def custom_exit(self, pair, trade, current_time, current_rate, current_profit, **kwargs):

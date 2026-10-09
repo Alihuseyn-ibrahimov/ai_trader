@@ -118,6 +118,20 @@ class TestCustomStoploss:
         # stop = max(100-10, 120-10) = 110
         assert self.call(s, trade, 115.0) == pytest.approx(stoploss_from_absolute(110.0, 115.0))
 
+    def test_trailing_right_after_fill_when_max_rate_is_none(self):
+        # Freqtrade after_fill çağırışında max_rate hələ None olur (2026-10-09 backtest logu)
+        s = make()
+        s.atr_trailing = True
+        trade = SimpleNamespace(open_rate=100.0, max_rate=None, enter_tag="trend|sd=10")
+        assert self.call(s, trade, 100.0) == pytest.approx(stoploss_from_absolute(90.0, 100.0))
+
+    def test_unexpected_error_falls_back_to_initial_atr_stop(self):
+        # trailing hesabında gözlənilməz xəta → heç olmasa ilkin ATR stopu (backstop yox)
+        s = make()
+        s.atr_trailing = True
+        trade = SimpleNamespace(open_rate=100.0, max_rate="pozuq", enter_tag="trend|sd=10")
+        assert self.call(s, trade, 100.0) == pytest.approx(stoploss_from_absolute(90.0, 100.0))
+
     def test_without_tag_keeps_static_stoploss(self):
         trade = SimpleNamespace(open_rate=100.0, max_rate=120.0, enter_tag=None)
         assert self.call(make(), trade, 110.0) is None
