@@ -3,6 +3,12 @@
 Qaydalar `signals/trend.py`-dadır. Parametrlər Faza 0 planında sabitlənib və
 yalnız IS datasına baxaraq dəyişdirilə bilər (OOS-a baxıb dəyişmək qadağandır).
 Düşüş trendində (EMA50 < EMA200) giriş yoxdur — pul USDT-də qalır.
+
+IS düzəlişi #1 (2026-10-09, istifadəçi qərarı): trailing stop söndürüldü.
+Səbəb: IS-də 80 çıxışdan 77-si trailing stop ilə idi — 4h-da 3×ATR adi səs-küy
+səviyyəsidir, mövqelər trendin ortasında bağlanırdı (PF 0.84). İndi çıxış: ilkin
+3×ATR stopu və ya EMA50 EMA200-ü aşağı keçəndə. Yeni parametr əlavə olunmayıb.
+Bu strategiya üçün IS-də başqa düzəliş edilməyəcək.
 """
 
 import sys
@@ -19,7 +25,7 @@ class TrendEmaAtr(RiskManagedStrategy):
     params = dict(ema_fast=50, ema_slow=200, atr_period=14, atr_mult=3.0)
 
     use_custom_stoploss = True
-    atr_trailing = True            # stop ən yüksək qiymətin 3×ATR arxasınca gedir
+    atr_trailing = False           # IS düzəlişi #1: trailing söndürüldü (docstring-ə bax)
     stoploss = -0.15               # yalnız ehtiyat (backstop); əsl stop ATR-dır
     minimal_roi = {"0": 100}       # ROI söndürülüb: çıxış siqnal və ya stop ilə
     startup_candle_count = 400     # EMA200 sabitləşsin
