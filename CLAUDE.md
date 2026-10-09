@@ -17,8 +17,11 @@ hesabat) sonrakı fazalarda əlavə olunacaq. Əsas: **Freqtrade**.
 - Phase 0.3 ✅: BASELINE `findings.md`-də (OOS 50/50: −15.4% xalis, DD 60%).
 - Phase 0.4 ✅: risk modulu + `RiskManagedStrategy` + audit. Smoke backtest
   (91 əməliyyat) auditdən keçdi: maks. planlaşdırılan risk 0.990%, alt xətt pozulmayıb.
-- Phase 0.5: iki strategiya yazıldı və test edildi — `TrendEmaAtr` (4h),
-  `MeanRevRsiBb` (1h). Qalan: istifadəçinin IS backtest-i, auditi, lookahead analizi.
+- Phase 0.5 ✅: B (`MeanRevRsiBb`) IS-də uğursuz oldu və çıxarıldı (PF 0.46).
+  A (`TrendEmaAtr`) bir IS düzəlişindən sonra (trailing söndürüldü): 25 əməliyyat,
+  PF 3.17, +39.15%. A **dondurulub** — `user_data/strategies/`, `signals/`, `risk/`
+  OOS bitənə qədər dəyişdirilmir.
+- Phase 0.6: `tools/oos_eval.py` hazırdır. OOS backtest **bir dəfə** işlədilir.
 
 ## Pozulmaz qaydalar
 
@@ -51,12 +54,12 @@ ai_trader/
 ├── tools/                    # analiz skriptləri, konteynerdə /freqtrade/tools (ro)
 │   ├── data_quality.py       # boşluq, dublikat, OHLC, sıfır həcm yoxlaması
 │   └── baseline.py           # buy & hold: gəlir, xalis gəlir, DD, volatillik
-│   └── risk_audit.py         # backtest nəticəsində risk qaydalarının yoxlanması
+│   ├── risk_audit.py         # backtest nəticəsində risk qaydalarının yoxlanması
+│   └── oos_eval.py           # OOS: vergi, MTM drawdown, 6 meyar → GO / NO-GO
 ├── signals/                  # SAF pandas siqnal məntiqi, konteynerdə /freqtrade/signals (ro)
 │   ├── indicators.py         # ema, atr (Wilder), rsi (Wilder), bollinger (ddof=0)
 │   ├── tags.py               # enter_tag-da stop məsafəsi: "ad|sd=<məsafə>"
-│   ├── trend.py              # Strategiya A qaydaları
-│   └── meanrev.py            # Strategiya B qaydaları
+│   └── trend.py              # Strategiya A qaydaları
 ├── risk/                     # SAF Python risk modulu, konteynerdə /freqtrade/risk (ro)
 │   └── limits.py             # RiskConfig, position_size, check_entry, floor/daily
 ├── tests/                    # pytest, konteynerdə /freqtrade/ai_tests (ro)
@@ -65,8 +68,7 @@ ai_trader/
     ├── strategies/
     │   ├── risk_managed.py   # BAZA SİNİF — bütün strategiyalar bundan törəməlidir
     │   ├── risk_smoke_test.py# yalnız risk mexanikasının sınağı, strategiya DEYİL
-    │   ├── trend_ema_atr.py  # A: TrendEmaAtr (4h)
-    │   └── meanrev_rsi_bb.py # B: MeanRevRsiBb (1h)
+    │   └── trend_ema_atr.py  # A: TrendEmaAtr (4h) — DONDURULUB
     ├── data/                 # tarixi data — git-ə girmir
     ├── backtest_results/     # git-ə girmir
     └── logs/                 # git-ə girmir
@@ -146,8 +148,19 @@ docker compose run --rm --entrypoint python freqtrade /freqtrade/tools/risk_audi
 docker compose run --rm freqtrade lookahead-analysis --config user_data/config.json --strategy TrendEmaAtr --timerange 20230101-20250101
 ```
 
-(`MeanRevRsiBb` üçün eyni.) `startup_candle_count=400` olduğu üçün backtest
+`startup_candle_count=400` olduğu üçün backtest
 datanın əvvəlindən 400 şam sonra başlayır (4h: ~2023-03-08, 1h: ~2023-01-17).
+
+### OOS sınağı (Phase 0.6) — YALNIZ BİR DƏFƏ
+
+```powershell
+docker compose run --rm freqtrade backtesting --config user_data/config.json --strategy TrendEmaAtr --timerange 20250101-20260930 --fee 0.0015 --enable-protections --export trades
+docker compose run --rm --entrypoint python freqtrade /freqtrade/tools/risk_audit.py TrendEmaAtr
+docker compose run --rm --entrypoint python freqtrade /freqtrade/tools/oos_eval.py TrendEmaAtr --is-profit-factor 3.17
+```
+
+Nəticədən sonra strategiyanı dəyişib OOS-u təkrar işlətmək **qadağandır** — bu,
+OOS-u IS-ə çevirir və nəticəni dəyərsiz edir.
 
 ### Analiz skriptləri və testlər (PowerShell, bir sətir)
 

@@ -11,8 +11,6 @@ pytest.importorskip("freqtrade")
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "user_data" / "strategies"))
 
-from meanrev_rsi_bb import MeanRevRsiBb  # noqa: E402
-from signals.meanrev import meanrev_signals  # noqa: E402
 from signals.trend import trend_signals  # noqa: E402
 from trend_ema_atr import TrendEmaAtr  # noqa: E402
 
@@ -43,8 +41,6 @@ def run(strategy):
         (TrendEmaAtr, trend_signals,
          # trailing söndürülüb — IS düzəlişi #1 (2026-10-09): 77/80 çıxış trailing ilə idi
          dict(ema_fast=50, ema_slow=200, atr_period=14, atr_mult=3.0), "4h", False),
-        (MeanRevRsiBb, meanrev_signals,
-         dict(bb_period=20, rsi_entry=30.0, atr_mult=2.0, trend_ema=200), "1h", False),
     ],
 )
 def test_strategy_matches_signal_module(cls, signal_fn, params, timeframe, trailing):
@@ -63,7 +59,7 @@ def test_strategy_matches_signal_module(cls, signal_fn, params, timeframe, trail
     assert out.loc[entries, "enter_tag"].tolist() == expected.loc[entries, "enter_tag"].tolist()
 
 
-@pytest.mark.parametrize("cls", [TrendEmaAtr, MeanRevRsiBb])
+@pytest.mark.parametrize("cls", [TrendEmaAtr])
 def test_roi_disabled_and_backstop_wider_than_typical_atr_stop(cls):
     assert min(cls.minimal_roi.values()) >= 10  # ROI söndürülüb: çıxış yalnız siqnal/stop
     assert -0.20 <= cls.stoploss <= -0.10
