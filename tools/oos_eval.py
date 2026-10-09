@@ -12,6 +12,11 @@ Hesablama:
 
 Konteynerdə işlətmə (ai_trader qovluğundan, OOS backtest-dən sonra):
     docker compose run --rm --entrypoint python freqtrade /freqtrade/tools/oos_eval.py TrendEmaAtr --is-profit-factor 3.17
+
+Holdout rejimi (holdout_plan.md): `--holdout --start ... --end ...` — yalnız
+meyar 2, 3, 5, 6 ayrıca qiymətləndirilir; 1 (əməliyyat sayı) və P (ümumi PF)
+bütün sınaqlar üzrə birləşdirilir (`pooled_decision`). Baseline = sınaqdakı
+cütlərin bərabər çəkili buy & hold-u (yalnız hesabat üçün).
 """
 
 import argparse
@@ -57,6 +62,12 @@ def profit_factor(trades: pd.DataFrame) -> float:
     return float(wins / losses)
 
 
+def gross_wins_losses(trades: pd.DataFrame) -> tuple[float, float]:
+    wins = float(trades.loc[trades["profit_abs"] > 0, "profit_abs"].sum())
+    losses = float(-trades.loc[trades["profit_abs"] < 0, "profit_abs"].sum())
+    return wins, losses
+
+
 def mtm_equity(trades: pd.DataFrame, prices: dict, start_balance: float, start: str,
                end: str) -> pd.Series:
     """Hər gün sonu: başlanğıc + reallaşmış mənfəət + açıq mövqelərin cari dəyəri.
@@ -100,26 +111,47 @@ def evaluate(metrics: dict, bh_net_return: float, bh_max_drawdown: float,
     return {"criteria": criteria, "go": all(criteria.values())}
 
 
+def evaluate_holdout(metrics: dict, is_profit_factor: float) -> dict:
+    """Holdout-un ayrıca keçməli olduğu meyarlar (holdout_plan.md, bölmə 4)."""
+    full = evaluate(metrics, bh_net_return=0.0, bh_max_drawdown=1.0,
+                    is_profit_factor=is_profit_factor)["criteria"]
+    criteria = {k: full[k] for k in ("2_drawdown", "3_profit_factor", "5_is_vs_oos", "6_positive")}
+    return {"criteria": criteria, "go": all(criteria.values())}
+
+
+def pooled_decision(runs: list[dict]) -> dict:
+    """Bütün sınaqlar birlikdə: əməliyyat sayı ≥ 30 və ümumi PF > 1.2."""
+    n = sum(r["n_trades"] for r in runs)
+    wins = sum(r["gross_wins"] for r in runs)
+    losses = sum(r["gross_losses"] for r in runs)
+    pf = math.inf if losses == 0 and wins > 0 else (wins / losses if losses else 0.0)
+    return {"n_trades": n, "profit_factor": pf,
+            "go": n >= MIN_TRADES and pf > MIN_PROFIT_FACTOR}
+
+
 def main() -> int:
     from freqtrade.data.btanalysis import load_backtest_data, load_backtest_stats
 
     parser = argparse.ArgumentParser()
     parser.add_argument("strategy")
     parser.add_argument("--is-profit-factor", type=float, required=True)
+    parser.add_argument("--start", default=OOS_START)
+    parser.add_argument("--end", default=OOS_END)
+    parser.add_argument("--holdout", action="store_true")
     args = parser.parse_args()
 
     stats = load_backtest_stats(RESULTS_DIR)["strategy"][args.strategy]
     trades = load_backtest_data(RESULTS_DIR, strategy=args.strategy)
     start_balance = float(stats["starting_balance"])
-    lo, hi = pd.Timestamp(OOS_START, tz="UTC"), pd.Timestamp(OOS_END, tz="UTC")
+    lo, hi = pd.Timestamp(args.start, tz="UTC"), pd.Timestamp(args.end, tz="UTC")
     if trades.empty or trades["open_date"].min() < lo or trades["close_date"].max() > hi:
-        print(f"XƏTA: son backtest OOS dövründə deyil [{OOS_START}, {OOS_END}) — "
-              "əvvəlcə --timerange 20250101-20260930 ilə backtest işlət")
+        print(f"XƏTA: son backtest [{args.start}, {args.end}) dövründə deyil — "
+              "əvvəlcə uyğun --timerange ilə backtest işlət")
         return 2
 
     pairs = sorted(trades["pair"].unique())
     prices = {p: pd.read_feather(DATA_DIR / f"{p.replace('/', '_')}-1d.feather") for p in pairs}
-    eq = mtm_equity(trades, prices, start_balance, OOS_START, OOS_END)
+    eq = mtm_equity(trades, prices, start_balance, args.start, args.end)
     gross = float(trades["profit_abs"].sum())
     tax = yearly_tax(trades, TAX)
     metrics = {
@@ -129,14 +161,18 @@ def main() -> int:
         "net_return": (gross - tax) / start_balance,
     }
 
-    bh = [slice_period(pd.read_feather(DATA_DIR / f"{p}-1d.feather"), OOS_START, OOS_END)
-          for p in ("BTC_USDT", "ETH_USDT")]
-    bh_eq = portfolio_equity(bh, [0.5, 0.5])
+    bh_pairs = [p.replace("/", "_") for p in stats["pairlist"]]
+    bh = [slice_period(pd.read_feather(DATA_DIR / f"{p}-1d.feather"), args.start, args.end)
+          for p in bh_pairs]
+    bh_eq = portfolio_equity(bh, [1 / len(bh)] * len(bh))
     bh_net, bh_dd = net_return(float(bh_eq.iloc[-1]), FEE, TAX), max_drawdown(bh_eq)
-    r = evaluate(metrics, bh_net, bh_dd, args.is_profit_factor)
+    wins, losses = gross_wins_losses(trades)
+    r = (evaluate_holdout(metrics, args.is_profit_factor) if args.holdout
+         else evaluate(metrics, bh_net, bh_dd, args.is_profit_factor))
 
-    print(f"OOS [{OOS_START}, {OOS_END}) — {args.strategy}\n")
-    print("| Metrik | Strategiya | Baseline 50/50 B&H |")
+    mode = "HOLDOUT" if args.holdout else "OOS"
+    print(f"{mode} [{args.start}, {args.end}) — {args.strategy} — cütlər: {', '.join(stats['pairlist'])}\n")
+    print("| Metrik | Strategiya | Baseline B&H (bərabər çəki) |")
     print("|---|---|---|")
     print(f"| Əməliyyat | {metrics['n_trades']} | — |")
     print(f"| Brüt mənfəət | {gross:+.2f} USDT ({gross / start_balance:+.2%}) | — |")
@@ -144,6 +180,7 @@ def main() -> int:
     print(f"| Xalis gəlir | {metrics['net_return']:+.2%} | {bh_net:+.2%} |")
     print(f"| Maks. drawdown (gündəlik MTM) | {metrics['max_drawdown']:.2%} | {bh_dd:.2%} |")
     print(f"| Profit factor | {metrics['profit_factor']:.2f} | — (IS: {args.is_profit_factor:.2f}) |")
+    print(f"| Qazanc cəmi / itki cəmi | {wins:.2f} / {losses:.2f} USDT | — |")
     print()
     labels = {
         "1_trades": f"Əməliyyat sayı ≥ {MIN_TRADES}",
@@ -155,7 +192,12 @@ def main() -> int:
     }
     for key, ok in r["criteria"].items():
         print(f"  {'KEÇDİ  ' if ok else 'UĞURSUZ'}  {key[0]}. {labels[key]}")
-    print(f"\nQƏRAR: {'GO' if r['go'] else 'NO-GO'}")
+    if args.holdout:
+        print(f"\n(Yalnız hesabat: meyar 4 — baseline {bh_net:+.2%}; əməliyyat sayı "
+              f"{metrics['n_trades']} birləşmiş meyara gedir)")
+        print(f"HOLDOUT NƏTİCƏSİ: {'KEÇDİ' if r['go'] else 'UĞURSUZ'}")
+    else:
+        print(f"\nQƏRAR: {'GO' if r['go'] else 'NO-GO'}")
     return 0
 
 

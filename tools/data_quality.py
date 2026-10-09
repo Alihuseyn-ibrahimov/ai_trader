@@ -5,8 +5,10 @@ boşluqlar (çatmayan şamlar), dublikatlar, OHLC məntiq pozuntuları, sıfır 
 
 Konteynerdə işlətmə (ai_trader qovluğundan):
     docker compose run --rm --entrypoint python freqtrade /freqtrade/tools/data_quality.py
+    docker compose run --rm --entrypoint python freqtrade /freqtrade/tools/data_quality.py --start 2020-01-01 --end 2023-01-01
 """
 
+import argparse
 import sys
 from pathlib import Path
 
@@ -66,10 +68,10 @@ def zero_volume(df: pd.DataFrame) -> int:
     return int((df["volume"] <= 0).sum())
 
 
-def check_file(path: Path, timeframe: str) -> dict:
-    df = slice_period(pd.read_feather(path), PERIOD_START, PERIOD_END)
+def check_file(path: Path, timeframe: str, start: str = PERIOD_START, end: str = PERIOD_END) -> dict:
+    df = slice_period(pd.read_feather(path), start, end)
     step = _step(timeframe)
-    expected = int((pd.Timestamp(PERIOD_END) - pd.Timestamp(PERIOD_START)) / step)
+    expected = int((pd.Timestamp(end) - pd.Timestamp(start)) / step)
     return {
         "file": path.name,
         "rows": len(df),
@@ -83,13 +85,13 @@ def check_file(path: Path, timeframe: str) -> dict:
     }
 
 
-def main(data_dir: Path = DATA_DIR) -> int:
+def main(data_dir: Path = DATA_DIR, start: str = PERIOD_START, end: str = PERIOD_END) -> int:
     files = sorted(data_dir.glob("*.feather"))
     if not files:
         print(f"XƏTA: {data_dir} qovluğunda feather faylı yoxdur")
         return 1
 
-    print(f"Dövr: [{PERIOD_START}, {PERIOD_END})\n")
+    print(f"Dövr: [{start}, {end})\n")
     print("| Fayl | Şam | Gözlənilən | Çatmır | Boşluq sayı | Dublikat | OHLC xətası | Sıfır həcm | İlk | Son |")
     print("|---|---|---|---|---|---|---|---|---|---|")
     results = []
@@ -97,7 +99,7 @@ def main(data_dir: Path = DATA_DIR) -> int:
         timeframe = path.stem.rsplit("-", 1)[-1]
         if timeframe not in TIMEFRAMES:
             continue
-        r = check_file(path, timeframe)
+        r = check_file(path, timeframe, start, end)
         results.append(r)
         missing = sum(n for _, n in r["gaps"])
         print(
@@ -118,4 +120,9 @@ def main(data_dir: Path = DATA_DIR) -> int:
 
 
 if __name__ == "__main__":
-    sys.exit(main(Path(sys.argv[1]) if len(sys.argv) > 1 else DATA_DIR))
+    parser = argparse.ArgumentParser()
+    parser.add_argument("data_dir", nargs="?", type=Path, default=DATA_DIR)
+    parser.add_argument("--start", default=PERIOD_START)
+    parser.add_argument("--end", default=PERIOD_END)
+    a = parser.parse_args()
+    sys.exit(main(a.data_dir, a.start, a.end))

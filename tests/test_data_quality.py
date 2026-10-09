@@ -2,6 +2,7 @@ import pandas as pd
 import pytest
 
 from data_quality import (
+    check_file,
     count_duplicates,
     find_gaps,
     ohlc_violations,
@@ -83,3 +84,11 @@ class TestSlicePeriod:
         out = slice_period(df, "2023-12-31", "2024-01-02")
         # başlanğıc daxil, son xaric (Freqtrade --timerange kimi)
         assert list(out["date"].dt.strftime("%Y-%m-%d")) == ["2023-12-31", "2024-01-01"]
+
+
+def test_check_file_uses_given_period(tmp_path):
+    dates = pd.date_range("2019-12-01", "2020-01-10", freq="1D", tz="UTC")
+    path = tmp_path / "BTC_USDT-1d.feather"
+    make_df(dates).to_feather(path)
+    r = check_file(path, "1d", "2020-01-01", "2020-01-06")
+    assert r["expected"] == 5 and r["rows"] == 5

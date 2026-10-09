@@ -116,3 +116,57 @@ class TestEvaluate:
         r = evaluate(dict(n_trades=40, max_drawdown=0.10, profit_factor=2.0, net_return=0.75),
                      bh_net_return=1.0, bh_max_drawdown=0.30, is_profit_factor=3.17)
         assert r["criteria"]["4_vs_baseline"] is True
+
+
+# --- Holdout (holdout_plan.md, 2026-10-09 təsdiqlənib) ---
+
+from oos_eval import evaluate_holdout, gross_wins_losses, pooled_decision  # noqa: E402
+
+
+class TestHoldout:
+    def call(self, **m):
+        metrics = dict(n_trades=8, max_drawdown=0.10, profit_factor=2.0, net_return=0.05)
+        metrics.update(m)
+        return evaluate_holdout(metrics, is_profit_factor=3.17)
+
+    def test_few_trades_alone_do_not_fail_a_holdout(self):
+        # əməliyyat sayı birləşmiş meyardır, ayrıca holdout üçün yox
+        r = self.call(n_trades=3)
+        assert r["go"] is True
+        assert set(r["criteria"]) == {"2_drawdown", "3_profit_factor", "5_is_vs_oos", "6_positive"}
+
+    @pytest.mark.parametrize(
+        "override,failed",
+        [
+            ({"max_drawdown": 0.20}, "2_drawdown"),
+            ({"profit_factor": 1.2}, "3_profit_factor"),
+            ({"profit_factor": 1.5}, "5_is_vs_oos"),
+            ({"net_return": 0.0}, "6_positive"),
+        ],
+    )
+    def test_each_criterion_fails_alone(self, override, failed):
+        r = self.call(**override)
+        assert r["criteria"][failed] is False and r["go"] is False
+
+
+class TestPooled:
+    def test_wins_losses_split(self):
+        t = pd.DataFrame([
+            trade("BTC/USDT", "2025-01-01", "2025-01-02", 1, 1, 1, 30),
+            trade("BTC/USDT", "2025-01-03", "2025-01-04", 1, 1, 1, -10),
+            trade("BTC/USDT", "2025-01-05", "2025-01-06", 1, 1, 1, -5),
+        ])
+        assert gross_wins_losses(t) == (30.0, 15.0)
+
+    def test_pooled_go(self):
+        runs = [dict(n_trades=19, gross_wins=400, gross_losses=120),
+                dict(n_trades=10, gross_wins=100, gross_losses=60),
+                dict(n_trades=5, gross_wins=50, gross_losses=40)]
+        r = pooled_decision(runs)
+        assert r["n_trades"] == 34
+        assert r["profit_factor"] == pytest.approx(550 / 220)
+        assert r["go"] is True
+
+    def test_pooled_fails_on_count_or_pf(self):
+        assert pooled_decision([dict(n_trades=29, gross_wins=10, gross_losses=1)])["go"] is False
+        assert pooled_decision([dict(n_trades=40, gross_wins=12, gross_losses=10)])["go"] is False

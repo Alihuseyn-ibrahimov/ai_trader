@@ -162,6 +162,12 @@ docker compose run --rm --entrypoint python freqtrade /freqtrade/tools/oos_eval.
 Nəticədən sonra strategiyanı dəyişib OOS-u təkrar işlətmək **qadağandır** — bu,
 OOS-u IS-ə çevirir və nəticəni dəyərsiz edir.
 
+### Holdout sınağı (Phase 0.6b, `holdout_plan.md`) — hər biri BİR DƏFƏ
+
+Cütlər `--pairs` ilə verilir, `config.json` dəyişmir. `oos_eval.py --holdout`
+yalnız meyar 2, 3, 5, 6-nı yoxlayır; əməliyyat sayı və ümumi PF bütün sınaqlar
+üzrə birləşdirilir. Əmrlər plan faylındadır və istifadəçiyə ayrıca verilir.
+
 ### Analiz skriptləri və testlər (PowerShell, bir sətir)
 
 ```powershell
