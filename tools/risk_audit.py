@@ -11,8 +11,11 @@ Yoxlamalar:
 
 Konteynerdə işlətmə (ai_trader qovluğundan, backtest-dən sonra):
     docker compose run --rm --entrypoint python freqtrade /freqtrade/tools/risk_audit.py RiskSmokeTest
+    # Faza 1 (paper, limit 0.5%):
+    docker compose run --rm --entrypoint python freqtrade /freqtrade/tools/risk_audit.py TrendEmaAtr --config /freqtrade/user_data/config.paper.json
 """
 
+import argparse
 import json
 import sys
 from pathlib import Path
@@ -95,10 +98,22 @@ def audit_trades(
     }
 
 
-def main(strategy: str) -> int:
+def parse_args(argv: list[str]) -> tuple[str, Path]:
+    parser = argparse.ArgumentParser()
+    parser.add_argument("strategy")
+    parser.add_argument("--config", type=Path, default=CONFIG, help="limitlərin götürüldüyü konfiqurasiya")
+    a = parser.parse_args(argv)
+    return a.strategy, a.config
+
+
+def load_risk(config: Path) -> dict:
+    return json.loads(config.read_text())["ai_risk"]
+
+
+def main(strategy: str, config: Path = CONFIG) -> int:
     from freqtrade.data.btanalysis import load_backtest_data, load_backtest_stats
 
-    risk = json.loads(CONFIG.read_text())["ai_risk"]
+    risk = load_risk(config)
     stats = load_backtest_stats(RESULTS_DIR)["strategy"][strategy]
     trades = load_backtest_data(RESULTS_DIR, strategy=strategy)
     r = audit_trades(
@@ -109,7 +124,7 @@ def main(strategy: str) -> int:
         max_open_trades=risk["max_open_trades"],
     )
 
-    print(f"Strategiya: {strategy}  |  əməliyyat sayı: {r['n_trades']}")
+    print(f"Strategiya: {strategy}  |  əməliyyat sayı: {r['n_trades']}  |  limitlər: {config.name}")
     if not r["checks"]["has_trades"]:
         print("XƏTA: əməliyyat yoxdur — audit mənasızdır")
         return 1
@@ -127,7 +142,4 @@ def main(strategy: str) -> int:
 
 
 if __name__ == "__main__":
-    if len(sys.argv) != 2:
-        print("İstifadə: risk_audit.py <StrategiyaAdı>")
-        sys.exit(2)
-    sys.exit(main(sys.argv[1]))
+    sys.exit(main(*parse_args(sys.argv[1:])))

@@ -1,0 +1,108 @@
+{
+    "$schema": "https://schema.freqtrade.io/schema.json",
+    "bot_name": "ai_trader_paper",
+    "trading_mode": "spot",
+    "margin_mode": "",
+    "dry_run": true,
+    "dry_run_wallet": 10000,
+    "stake_currency": "USDT",
+    "stake_amount": "unlimited",
+    "tradable_balance_ratio": 0.99,
+    "max_open_trades": 2,
+    "fiat_display_currency": "USD",
+    "cancel_open_orders_on_exit": false,
+    "unfilledtimeout": {
+        "entry": 10,
+        "exit": 10,
+        "exit_timeout_count": 0,
+        "unit": "minutes"
+    },
+    "entry_pricing": {
+        "price_side": "same",
+        "use_order_book": true,
+        "order_book_top": 1,
+        "price_last_balance": 0.0,
+        "check_depth_of_market": {
+            "enabled": false,
+            "bids_to_ask_delta": 1
+        }
+    },
+    "exit_pricing": {
+        "price_side": "same",
+        "use_order_book": true,
+        "order_book_top": 1
+    },
+    "exchange": {
+        "name": "binance",
+        "key": "",
+        "secret": "",
+        "enable_ws": false,
+        "ccxt_config": {
+            "urls": {
+                "api": {
+                    "public": "https://data-api.binance.vision/api/v3"
+                }
+            },
+            "options": {
+                "fetchMarkets": {
+                    "types": [
+                        "spot"
+                    ]
+                }
+            }
+        },
+        "ccxt_async_config": {},
+        "pair_whitelist": [
+            "BTC/USDT",
+            "ETH/USDT",
+            "SOL/USDT",
+            "BNB/USDT",
+            "XRP/USDT",
+            "ADA/USDT",
+            "DOGE/USDT"
+        ],
+        "pair_blacklist": []
+    },
+    "pairlists": [
+        {
+            "method": "StaticPairList"
+        }
+    ],
+    "telegram": {
+        "enabled": true,
+        "token": "",
+        "chat_id": "",
+        "notification_settings": {
+            "status": "on",
+            "warning": "on",
+            "startup": "on",
+            "entry": "on",
+            "entry_fill": "on",
+            "exit": {
+                "roi": "on",
+                "exit_signal": "on",
+                "stop_loss": "on",
+                "force_exit": "on",
+                "custom_exit": "on",
+                "emergency_exit": "on"
+            },
+            "exit_fill": "on",
+            "entry_cancel": "on",
+            "exit_cancel": "on",
+            "protection_trigger": "on",
+            "protection_trigger_global": "on"
+        }
+    },
+    "initial_state": "running",
+    "internals": {
+        "process_throttle_secs": 5
+    },
+    "ai_risk": {
+        "risk_per_trade": 0.005,
+        "daily_loss_limit": 0.03,
+        "floor_ratio": 0.7,
+        "max_open_trades": 2
+    },
+    "strategy": "TrendEmaAtr",
+    "db_url": "sqlite:////freqtrade/user_data/tradesv3.paper.sqlite"
+}

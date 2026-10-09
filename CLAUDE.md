@@ -22,6 +22,12 @@ hesabat) sonrakı fazalarda əlavə olunacaq. Əsas: **Freqtrade**.
   PF 3.17, +39.15%. A **dondurulub** — `user_data/strategies/`, `signals/`, `risk/`
   OOS bitənə qədər dəyişdirilmir.
 - Phase 0.6: `tools/oos_eval.py` hazırdır. OOS backtest **bir dəfə** işlədilir.
+- Faza 0 bağlandı: TrendEmaAtr (1%) **NO-GO** (holdout DD 21–23%).
+- **Faza 1 — Paper trading (təsdiqlənib 2026-10-09):** eyni siqnallar, risk 0.5%,
+  7 cüt, virtual 10 000 USDT. Plan: `.planning/2026-10-09-ai-trader-faza1-paper/task_plan.md`.
+  Konfiqurasiya: `user_data/config.paper.json` (backtest-in `config.json`-u dəyişməz qalır;
+  `tests/test_config_paper.py` icazəsiz fərqləri tutur). Strategiya kodu hələ də dəyişmir —
+  istənilən dəyişiklik paper sınağını sıfırdan başladır.
 
 ## Pozulmaz qaydalar
 

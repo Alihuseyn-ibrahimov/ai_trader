@@ -100,3 +100,21 @@ def test_planned_stop_taken_from_enter_tag_when_present():
     # əsl planlaşdırılan stop tag-dadır: 100 - 5 = 95
     r = run([trade("2023-01-01", "2023-01-02", 180, 100, 85, 0, tag="trend|sd=5")])
     assert r["max_planned_risk"] == pytest.approx((1.8 * 5 + 1.8 * 100 * FEE + 1.8 * 95 * FEE) / 1000)
+
+
+def test_cli_default_config_is_backtest_config():
+    from risk_audit import CONFIG, parse_args
+
+    strategy, config = parse_args(["TrendEmaAtr"])
+    assert strategy == "TrendEmaAtr" and config == CONFIG
+
+
+def test_cli_config_option_for_paper_limits(tmp_path):
+    # Faza 1: paper konfiqurasiyasında limit 0.5% — audit həmin limitlə yoxlamalıdır
+    from risk_audit import load_risk, parse_args
+
+    path = tmp_path / "config.paper.json"
+    path.write_text('{"ai_risk": {"risk_per_trade": 0.005, "floor_ratio": 0.7, "max_open_trades": 2}}')
+    strategy, config = parse_args(["TrendEmaAtr", "--config", str(path)])
+    assert config == path
+    assert load_risk(config)["risk_per_trade"] == 0.005
