@@ -13,6 +13,8 @@ Konteynerdə işlətmə (ai_trader qovluğundan, backtest-dən sonra):
     docker compose run --rm --entrypoint python freqtrade /freqtrade/tools/risk_audit.py RiskSmokeTest
     # Faza 1 (paper, limit 0.5%):
     docker compose run --rm --entrypoint python freqtrade /freqtrade/tools/risk_audit.py TrendEmaAtr --config /freqtrade/user_data/config.paper.json
+    # Faza 1 canlı paper: əməliyyatlar bot-un DB-sindən (config-dəki db_url), açıqlar da daxil:
+    docker compose run --rm --entrypoint python freqtrade /freqtrade/tools/risk_audit.py TrendEmaAtr --config /freqtrade/user_data/config.paper.json --db
 """
 
 import argparse
@@ -98,27 +100,45 @@ def audit_trades(
     }
 
 
-def parse_args(argv: list[str]) -> tuple[str, Path]:
+def prepare_db_trades(trades: pd.DataFrame, now: pd.Timestamp) -> pd.DataFrame:
+    """DB əməliyyatları: açıq mövqe indiyə qədər açıq sayılır, reallaşmamış nəticəsi 0."""
+    out = trades.copy()
+    is_open = out["is_open"].astype(bool)
+    # DB tarixləri datetime64[ms]; dəqiqəyə yuvarlaqlaşdırılmış `now` itkisiz çevrilir
+    out.loc[is_open, "close_date"] = now.floor("min")
+    out["profit_abs"] = out["profit_abs"].where(~is_open, 0.0).fillna(0.0).astype(float)
+    return out
+
+
+def parse_args(argv: list[str]) -> tuple[str, Path, bool]:
     parser = argparse.ArgumentParser()
     parser.add_argument("strategy")
     parser.add_argument("--config", type=Path, default=CONFIG, help="limitlərin götürüldüyü konfiqurasiya")
+    parser.add_argument("--db", action="store_true", help="backtest yox, bot-un DB-si (config-dəki db_url)")
     a = parser.parse_args(argv)
-    return a.strategy, a.config
+    return a.strategy, a.config, a.db
 
 
 def load_risk(config: Path) -> dict:
     return json.loads(config.read_text())["ai_risk"]
 
 
-def main(strategy: str, config: Path = CONFIG) -> int:
-    from freqtrade.data.btanalysis import load_backtest_data, load_backtest_stats
+def main(strategy: str, config: Path = CONFIG, db: bool = False) -> int:
+    from freqtrade.data.btanalysis import load_backtest_data, load_backtest_stats, load_trades_from_db
 
     risk = load_risk(config)
-    stats = load_backtest_stats(RESULTS_DIR)["strategy"][strategy]
-    trades = load_backtest_data(RESULTS_DIR, strategy=strategy)
+    if db:
+        cfg = json.loads(config.read_text())
+        trades = prepare_db_trades(load_trades_from_db(cfg["db_url"], strategy=strategy),
+                                   pd.Timestamp.now(tz="UTC"))
+        starting_balance = float(cfg["dry_run_wallet"])
+    else:
+        stats = load_backtest_stats(RESULTS_DIR)["strategy"][strategy]
+        trades = load_backtest_data(RESULTS_DIR, strategy=strategy)
+        starting_balance = float(stats["starting_balance"])
     r = audit_trades(
         trades,
-        starting_balance=float(stats["starting_balance"]),
+        starting_balance=starting_balance,
         risk_pct=risk["risk_per_trade"],
         floor_ratio=risk["floor_ratio"],
         max_open_trades=risk["max_open_trades"],

@@ -105,8 +105,8 @@ def test_planned_stop_taken_from_enter_tag_when_present():
 def test_cli_default_config_is_backtest_config():
     from risk_audit import CONFIG, parse_args
 
-    strategy, config = parse_args(["TrendEmaAtr"])
-    assert strategy == "TrendEmaAtr" and config == CONFIG
+    strategy, config, db = parse_args(["TrendEmaAtr"])
+    assert strategy == "TrendEmaAtr" and config == CONFIG and db is False
 
 
 def test_cli_config_option_for_paper_limits(tmp_path):
@@ -115,6 +115,6 @@ def test_cli_config_option_for_paper_limits(tmp_path):
 
     path = tmp_path / "config.paper.json"
     path.write_text('{"ai_risk": {"risk_per_trade": 0.005, "floor_ratio": 0.7, "max_open_trades": 2}}')
-    strategy, config = parse_args(["TrendEmaAtr", "--config", str(path)])
-    assert config == path
+    strategy, config, db = parse_args(["TrendEmaAtr", "--config", str(path), "--db"])
+    assert config == path and db is True
     assert load_risk(config)["risk_per_trade"] == 0.005

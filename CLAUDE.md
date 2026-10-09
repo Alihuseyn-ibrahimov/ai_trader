@@ -62,6 +62,10 @@ ai_trader/
 │   └── baseline.py           # buy & hold: gəlir, xalis gəlir, DD, volatillik
 │   ├── risk_audit.py         # backtest nəticəsində risk qaydalarının yoxlanması
 │   └── oos_eval.py           # OOS: vergi, MTM drawdown, 6 meyar → GO / NO-GO
+│   ├── paper_report.py       # Faza 1: gündəlik AZ hesabat (DB) → Telegram; paper_equity.csv
+│   ├── paper_eval.py         # Faza 1: plan §4 meyar 1–4 (DB + 1d qiymətlər)
+│   ├── parity.py             # Faza 1: meyar 6 — paper ↔ backtest uyğunluğu
+│   └── uptime.py             # Faza 1: meyar 7 — heartbeat logundan 4h şam emalı
 ├── signals/                  # SAF pandas siqnal məntiqi, konteynerdə /freqtrade/signals (ro)
 │   ├── indicators.py         # ema, atr (Wilder), rsi (Wilder), bollinger (ddof=0)
 │   ├── tags.py               # enter_tag-da stop məsafəsi: "ad|sd=<məsafə>"
@@ -184,6 +188,21 @@ docker compose run --rm --entrypoint sh freqtrade -c "pip install -q --user pyte
 
 Testlərdə `-c /dev/null` vacibdir: Freqtrade image-inin öz `pyproject.toml`-u
 pytest-ə `--dist` parametri ötürür və testlər işə düşmür.
+
+### Faza 1 — paper alətləri (T0 = sınağın rəsmi başlanğıcı)
+
+```powershell
+docker compose run --rm --entrypoint python freqtrade /freqtrade/tools/paper_report.py
+docker compose run --rm --entrypoint python freqtrade /freqtrade/tools/risk_audit.py TrendEmaAtr --config /freqtrade/user_data/config.paper.json --db
+docker compose run --rm --entrypoint python freqtrade /freqtrade/tools/uptime.py --start <T0>
+docker compose run --rm --entrypoint python freqtrade /freqtrade/tools/paper_eval.py --start <T0>
+docker compose run --rm --entrypoint python freqtrade /freqtrade/tools/parity.py --start <T0>
+```
+
+- Freqtrade DB tarixləri `datetime64[ms, UTC]`-dir — `pd.Timestamp.now()` (µs) birbaşa
+  yazılmır, əvvəl yuvarlaqlaşdır (`risk_audit.prepare_db_trades`).
+- `paper_eval` MTM üçün 1d qiymət faylları tələb edir (əvvəl `download-data --timeframes 1d`).
+- `parity` üçün əvvəl eyni dövrə `backtesting --config user_data/config.paper.json --export trades`.
 
 ## Bilinən problemlər
 
