@@ -46,7 +46,7 @@ def current_equity(trades: pd.DataFrame, prices: dict, start_balance: float) -> 
 
 def load_history(path: Path) -> pd.Series:
     if not path.exists():
-        return pd.Series(dtype=float)
+        return pd.Series(dtype=float, index=pd.DatetimeIndex([]))
     df = pd.read_csv(path, parse_dates=["date"])
     return pd.Series(df["equity"].values, index=pd.DatetimeIndex(df["date"]), dtype=float)
 

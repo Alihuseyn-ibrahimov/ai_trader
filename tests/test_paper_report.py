@@ -103,3 +103,10 @@ def test_telegram_payload_never_contains_token():
     url, body = telegram_payload("SECRET123", "42", "salam")
     assert url == "https://api.telegram.org/botSECRET123/sendMessage"
     assert body == {"chat_id": "42", "text": "salam"}
+
+
+def test_empty_history_can_be_filtered_by_date(tmp_path):
+    # Regressiya (istifadəçi, ilk işləmə): fayl yoxdursa RangeIndex qaytarılırdı və
+    # `history[history.index < today]` TypeError verirdi
+    h = load_history(tmp_path / "yoxdur.csv")
+    assert h[h.index < pd.Timestamp("2026-10-09")].empty
