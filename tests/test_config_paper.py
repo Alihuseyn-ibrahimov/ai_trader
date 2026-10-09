@@ -19,7 +19,7 @@ PAIRS = ["BTC/USDT", "ETH/USDT", "SOL/USDT", "BNB/USDT", "XRP/USDT", "ADA/USDT",
 
 # config.json-dan fərqlənməsinə icazə verilən üst səviyyə açarlar
 ALLOWED_TOP_DIFF = {
-    "bot_name", "dry_run_wallet", "telegram", "initial_state", "db_url", "strategy",
+    "bot_name", "dry_run_wallet", "available_capital", "telegram", "initial_state", "db_url", "strategy",
     "ai_risk", "exchange",
 }
 # exchange daxilində icazə verilən fərqlər
@@ -56,6 +56,9 @@ def test_strategy_fixed():
 
 def test_virtual_capital_10000():
     assert PAPER["dry_run_wallet"] == 10000
+    # Olmasa Freqtrade başlanğıc kapitalı dry_run_wallet × tradable_balance_ratio (0.99)
+    # = 9900 götürür → alt xətt 6930 olur, təsdiqlənmiş 7000 yox (2026-10-09, /balance)
+    assert PAPER["available_capital"] == PAPER["dry_run_wallet"]
     assert PAPER["stake_currency"] == "USDT"
 
 
