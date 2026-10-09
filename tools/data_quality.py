@@ -85,6 +85,11 @@ def check_file(path: Path, timeframe: str, start: str = PERIOD_START, end: str =
     }
 
 
+def _fmt(ts) -> str:
+    """Dövrdə şam yoxdursa (min/max = NaT) tire qaytarır."""
+    return "—" if pd.isna(ts) else f"{ts:%Y-%m-%d %H:%M}"
+
+
 def main(data_dir: Path = DATA_DIR, start: str = PERIOD_START, end: str = PERIOD_END) -> int:
     files = sorted(data_dir.glob("*.feather"))
     if not files:
@@ -105,7 +110,7 @@ def main(data_dir: Path = DATA_DIR, start: str = PERIOD_START, end: str = PERIOD
         print(
             f"| {r['file']} | {r['rows']} | {r['expected']} | {r['expected'] - r['rows']} "
             f"| {len(r['gaps'])} ({missing} şam) | {r['duplicates']} | {r['ohlc_bad']} "
-            f"| {r['zero_volume']} | {r['first']:%Y-%m-%d %H:%M} | {r['last']:%Y-%m-%d %H:%M} |"
+            f"| {r['zero_volume']} | {_fmt(r['first'])} | {_fmt(r['last'])} |"
         )
 
     for r in results:

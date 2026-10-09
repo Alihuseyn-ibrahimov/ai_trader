@@ -92,3 +92,21 @@ def test_check_file_uses_given_period(tmp_path):
     make_df(dates).to_feather(path)
     r = check_file(path, "1d", "2020-01-01", "2020-01-06")
     assert r["expected"] == 5 and r["rows"] == 5
+
+
+def test_main_handles_file_without_candles_in_period(tmp_path, capsys):
+    # Regressiya: dövrdə heç bir şamı olmayan fayl (məs. 2023-dən başlayan 1h)
+    # NaT ilə strftime xətası verirdi və cədvəl yarımçıq qalırdı.
+    from data_quality import main
+
+    make_df(pd.date_range("2023-01-01", periods=5, freq="1h", tz="UTC")).to_feather(
+        tmp_path / "BTC_USDT-1h.feather"
+    )
+    make_df(pd.date_range("2019-12-01", "2020-01-10", freq="1D", tz="UTC")).to_feather(
+        tmp_path / "ETH_USDT-1d.feather"
+    )
+    assert main(tmp_path, "2020-01-01", "2020-01-06") == 0
+    out = capsys.readouterr().out
+    assert "| BTC_USDT-1h.feather | 0 | 120 | 120 |" in out
+    assert "| — | — |" in out
+    assert "ETH_USDT-1d.feather | 5 | 5 | 0 |" in out
