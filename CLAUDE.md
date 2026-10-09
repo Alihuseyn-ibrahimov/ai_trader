@@ -59,9 +59,9 @@ ai_trader/
 ├── docker-compose.yml        # Freqtrade 2026.9 (versiya sabitdir)
 ├── tools/                    # analiz skriptləri, konteynerdə /freqtrade/tools (ro)
 │   ├── data_quality.py       # boşluq, dublikat, OHLC, sıfır həcm yoxlaması
-│   └── baseline.py           # buy & hold: gəlir, xalis gəlir, DD, volatillik
+│   ├── baseline.py           # buy & hold: gəlir, xalis gəlir, DD, volatillik
 │   ├── risk_audit.py         # backtest nəticəsində risk qaydalarının yoxlanması
-│   └── oos_eval.py           # OOS: vergi, MTM drawdown, 6 meyar → GO / NO-GO
+│   ├── oos_eval.py           # OOS: vergi, MTM drawdown, 6 meyar → GO / NO-GO
 │   ├── paper_report.py       # Faza 1: gündəlik AZ hesabat (DB) → Telegram; paper_equity.csv
 │   ├── paper_eval.py         # Faza 1: plan §4 meyar 1–4 (DB + 1d qiymətlər)
 │   ├── parity.py             # Faza 1: meyar 6 — paper ↔ backtest uyğunluğu
@@ -188,6 +188,18 @@ docker compose run --rm --entrypoint sh freqtrade -c "pip install -q --user pyte
 
 Testlərdə `-c /dev/null` vacibdir: Freqtrade image-inin öz `pyproject.toml`-u
 pytest-ə `--dist` parametri ötürür və testlər işə düşmür.
+
+### Faza 1 — paper bot-u (daimi servis)
+
+```powershell
+copy .env.example .env        # sonra .env-də token və chat_id doldur (commit olunmur)
+docker compose up -d paper     # başlat (restart: unless-stopped)
+docker compose logs --tail 50 paper
+docker compose stop paper      # dayandır
+docker compose exec paper python /freqtrade/tools/paper_report.py --send
+```
+
+`.env` olmadan `paper` başlamır (qəsdən). `freqtrade` servisi (backtest) `.env`-siz işləyir.
 
 ### Faza 1 — paper alətləri (T0 = sınağın rəsmi başlanğıcı)
 

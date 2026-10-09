@@ -14,6 +14,28 @@ services:
       - "./risk:/freqtrade/risk:ro"
       # Siqnal məntiqi (indikatorlar, giriş/çıxış qaydaları)
       - "./signals:/freqtrade/signals:ro"
-    # Faza 0: yalnız backtest, bot daimi işləmir. Əmrlər `docker compose run --rm` ilə.
+    # Birdəfəlik əmrlər (backtest, analiz): `docker compose run --rm freqtrade ...`
     command: >
       --version
+
+  # Faza 1 — daimi paper trading bot-u (dry_run, birja açarı yoxdur).
+  # Başlatmaq: `docker compose up -d paper`, dayandırmaq: `docker compose stop paper`.
+  # Telegram token və chat_id yalnız .env-dən (commit olunmur; nümunə: .env.example).
+  paper:
+    image: freqtradeorg/freqtrade:2026.9
+    restart: unless-stopped
+    container_name: ai_trader_paper
+    env_file:
+      - path: .env
+        required: true
+    volumes:
+      - "./user_data:/freqtrade/user_data"
+      - "./tools:/freqtrade/tools:ro"
+      - "./risk:/freqtrade/risk:ro"
+      - "./signals:/freqtrade/signals:ro"
+    command:
+      - trade
+      - --config
+      - user_data/config.paper.json
+      - --logfile
+      - user_data/logs/paper.log
