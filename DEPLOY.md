@@ -4,7 +4,7 @@
 **tv-monitor və n8n ilə paylaşılır**. Bot onlara toxunmur: ayrıca `/opt/ai_trader` qovluğu,
 ayrıca konteyner, yaddaş həddi 1 GB, port açılmır.
 **Vəziyyət (2026-10-10):** Ubuntu 26.04, Docker 29.6, Compose v5.3, RAM 3.7 GB (1.9 GB boş),
-disk 18 GB boş, 2 nüvə.
+disk 18 GB boş, 2 nüvə, saat qurşağı **Asia/Baku** (binance 200, telegram 302).
 
 Faza 1-də birja açarı **yoxdur** (dry_run). `.env`-də yalnız Telegram token və chat_id var.
 Faza 2-dən (real pul) əvvəl bot ayrıca VPS-ə köçürülür (plan §9).
@@ -22,8 +22,8 @@ $K = "$HOME\.ssh\hetzner_tvmonitor"
 ```powershell
 ssh -i $K root@91.99.149.63 "curl -s -o /dev/null -w 'binance %{http_code}\n' https://data-api.binance.vision/api/v3/ping; curl -s -o /dev/null -w 'telegram %{http_code}\n' https://api.telegram.org; ls /opt; timedatectl | grep 'Time zone'"
 ```
-Gözlənilən: `binance 200`, `telegram 302` (və ya 200), `/opt`-da `ai_trader` yoxdur,
-saat qurşağı `Etc/UTC`. UTC deyilsə, cron vaxtını (bölmə 1.6) uyğunlaşdır.
+Gözlənilən: `binance 200`, `telegram 302` (və ya 200), `/opt`-da `ai_trader` yoxdur.
+Saat qurşağı fərq etmir: `install_cron.sh` vaxtları UTC-dən yerli saata özü çevirir.
 
 ### 1.2 Kodu paketlə və göndər (lokal, `Quantum` qovluğundan)
 ```powershell
@@ -60,7 +60,8 @@ Gözlənilən: `Up`, `state='RUNNING'`, Telegram-a "Status: running" gəlir.
 ssh -i $K root@91.99.149.63 "cd /opt/ai_trader && ./deploy/daily_report.sh && ./deploy/install_cron.sh"
 ```
 - Birinci skript hesabatı dərhal göndərir (yoxlama).
-- İkincisi cron-a 2 sətir əlavə edir: hər gün 05:00 UTC (09:00 Bakı) hesabat, ayın 1-i uptime.
+- İkincisi cron-a 2 sətir əlavə edir: hər gün 05:00 UTC (= 09:00 Bakı) hesabat, ayın 1-i uptime.
+  Cron serverin yerli saatı ilə işləyir; Asia/Baku-da sətir `0 9 * * *` olacaq.
 - Mövcud cron işlərinə (tv-monitor) toxunmur. Təkrar işlədilsə dublikat yaratmır.
   Çıxışda tam crontab görünür; köhnə sətirlərin yerində olduğunu yoxla.
 
