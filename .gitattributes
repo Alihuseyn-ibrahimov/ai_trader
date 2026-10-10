@@ -1,0 +1,2 @@
+# Linux serverdə işləyən skriptlər həmişə LF ilə (Windows-da git archive CRLF yaza bilər)
+*.sh text eol=lf

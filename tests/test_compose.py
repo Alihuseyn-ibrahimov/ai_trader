@@ -46,3 +46,11 @@ def test_env_example_has_names_but_no_values():
     keys = {l.split("=", 1)[0]: l.split("=", 1)[1] for l in lines}
     assert set(keys) == {"FREQTRADE__TELEGRAM__TOKEN", "FREQTRADE__TELEGRAM__CHAT_ID"}
     assert all(v == "" for v in keys.values())
+
+
+def test_resource_limits_protect_shared_vps():
+    # Hetzner VPS n8n ilə paylaşılır (3.7 GB RAM) — bot onu sıxışdırmamalıdır
+    assert PAPER["mem_limit"] == "1g"
+    log = PAPER["logging"]
+    assert log["driver"] == "json-file"
+    assert log["options"] == {"max-size": "10m", "max-file": "3"}
