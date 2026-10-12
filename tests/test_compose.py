@@ -112,3 +112,10 @@ def test_install_cron_schedules_monthly_shadow_compare():
     assert "monthly_compare.sh" in script and "local_hm 335) 1 * *" in script  # ayın 1-i 09:35 Bakı
     run = (ROOT / "deploy" / "monthly_compare.sh").read_text()
     assert "exec -T paper python /freqtrade/tools/shadow_compare.py" in run and "args=(--send)" in run
+
+
+def test_install_cron_schedules_daily_panel_after_agents():
+    script = (ROOT / "deploy" / "install_cron.sh").read_text()
+    assert "daily_panel.sh" in script and "local_hm 315" in script     # 05:15 UTC = 09:15 Bakı
+    run = (ROOT / "deploy" / "daily_panel.sh").read_text()
+    assert "exec -T paper python /freqtrade/tools/panel.py" in run and "args=(--send)" in run

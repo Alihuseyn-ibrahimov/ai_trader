@@ -67,6 +67,7 @@ ai_trader/
 │   ├── parity.py             # Faza 1: meyar 6 — paper ↔ backtest uyğunluğu
 │   ├── uptime.py             # Faza 1: meyar 7 — heartbeat logundan 4h şam emalı
 │   ├── market_brief.py       # gündəlik AI bazar icmalı (Groq + RSS), rəqəm yoxlaması; ticarətə toxunmur
+│   ├── panel.py              # gündəlik HTML panel (paper + kölgə) → Telegram faylı; internetə açılmır
 │   ├── shadow_compare.py     # aylıq: kölgə (agentlər) ↔ TrendEmaAtr paper, agent plan §5
 │   └── tax_report.py         # vergi jurnalı: AZN (CBAR), Bakı ili, 14% — Faza 2 hazırlığı
 ├── agents/                   # çoxagentli analiz + KÖLGƏ qərar (icra YOX); ayrıca konteyner, /app

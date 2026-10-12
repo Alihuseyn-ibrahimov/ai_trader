@@ -131,6 +131,7 @@ ssh -i $K root@91.99.149.63 "cd /opt/ai_trader && docker compose up -d paper && 
 | Vəziyyət | `ssh -i $K root@91.99.149.63 "cd /opt/ai_trader && docker compose ps paper"` |
 | Son log | `ssh -i $K root@91.99.149.63 "cd /opt/ai_trader && docker compose logs --tail 30 paper"` |
 | Risk auditi | `ssh -i $K root@91.99.149.63 "cd /opt/ai_trader && docker compose exec -T paper python /freqtrade/tools/risk_audit.py TrendEmaAtr --config /freqtrade/user_data/config.paper.json --db"` |
+| Panel (HTML, Telegram faylı) | hər gün 09:15 avtomatik; əl ilə: `ssh -i $K root@91.99.149.63 "cd /opt/ai_trader && ./deploy/daily_panel.sh"` |
 | Kölgə qərarları | `ssh -i $K root@91.99.149.63 "cd /opt/ai_trader && tail -14 user_data/shadow/decisions.csv && tail -5 user_data/logs/cron_agents.log"` |
 | Dayandır (plan §5) | `ssh -i $K root@91.99.149.63 "cd /opt/ai_trader && docker compose stop paper"` |
 
