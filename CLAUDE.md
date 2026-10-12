@@ -65,7 +65,9 @@ ai_trader/
 │   ├── paper_report.py       # Faza 1: gündəlik AZ hesabat (DB) → Telegram; paper_equity.csv
 │   ├── paper_eval.py         # Faza 1: plan §4 meyar 1–4 (DB + 1d qiymətlər)
 │   ├── parity.py             # Faza 1: meyar 6 — paper ↔ backtest uyğunluğu
-│   └── uptime.py             # Faza 1: meyar 7 — heartbeat logundan 4h şam emalı
+│   ├── uptime.py             # Faza 1: meyar 7 — heartbeat logundan 4h şam emalı
+│   ├── market_brief.py       # gündəlik AI bazar icmalı (Groq + RSS), rəqəm yoxlaması; ticarətə toxunmur
+│   └── tax_report.py         # vergi jurnalı: AZN (CBAR), Bakı ili, 14% — Faza 2 hazırlığı
 ├── signals/                  # SAF pandas siqnal məntiqi, konteynerdə /freqtrade/signals (ro)
 │   ├── indicators.py         # ema, atr (Wilder), rsi (Wilder), bollinger (ddof=0)
 │   ├── tags.py               # enter_tag-da stop məsafəsi: "ad|sd=<məsafə>"
@@ -215,6 +217,8 @@ docker compose run --rm --entrypoint python freqtrade /freqtrade/tools/parity.py
   yazılmır, əvvəl yuvarlaqlaşdır (`risk_audit.prepare_db_trades`).
 - `paper_eval` MTM üçün 1d qiymət faylları tələb edir (əvvəl `download-data --timeframes 1d`).
 - `parity` üçün əvvəl eyni dövrə `backtesting --config user_data/config.paper.json --export trades`.
+- `tax_report.py` CBAR-dan USD/AZN çəkir (keş: `user_data/cbar_usd_azn.csv`), CSV: `user_data/tax/`
+  (ikisi də gitignore-dadır). Dry-run DB üçün "PAPER — real vergi deyil" yazır.
 
 ## Bilinən problemlər
 
