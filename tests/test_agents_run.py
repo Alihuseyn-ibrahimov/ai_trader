@@ -1,11 +1,17 @@
 """Gündəlik kölgə dövrü (agents/run.py) — saxta qraf ilə, şəbəkəsiz."""
 
+from pathlib import Path
+
 import pandas as pd
 import pytest
 
-from agents.run import (already_ran, append_rows, compose_message, decision_rows, h4_frame,
-                        run_cycle)
-from agents.shadow import ShadowBook
+if not (Path(__file__).resolve().parent.parent / "agents").exists():
+    # Freqtrade konteynerində agents/ mount olunmur — bu testlər host/agent imicindədir
+    pytest.skip("agents/ yoxdur (Freqtrade konteyneri)", allow_module_level=True)
+
+from agents.run import (already_ran, append_rows, compose_message, decision_rows,  # noqa: E402
+                        h4_frame, run_cycle)
+from agents.shadow import ShadowBook  # noqa: E402
 
 NOW = pd.Timestamp("2026-10-12 06:10", tz="UTC")
 PAIRS = ["A/USDT", "B/USDT"]

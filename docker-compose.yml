@@ -46,3 +46,33 @@ services:
       - user_data/config.paper.json
       - --logfile
       - user_data/logs/paper.log
+
+  # Çoxagentli analiz + KÖLGƏ qərar (plan: .planning/2026-10-12-ai-trader-agents/).
+  # Qərarlar icra olunmur. Bot-a toxunmur: kod və paper config :ro, yeganə yazılan yer
+  # user_data/shadow/. `up -d` bu servisi başlatmır (profile) — cron gündə 1 dəfə `run` edir:
+  #   docker compose run --rm -T agents python -m agents.run --send
+  agents:
+    build: ./agents
+    image: ai_trader_agents:1
+    profiles: ["agents"]
+    restart: "no"
+    mem_limit: 512m
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+    env_file:
+      - path: .env
+        required: true
+    environment:
+      LANGSMITH_TRACING: "true"
+      LANGSMITH_PROJECT: ai-trader-agents
+    volumes:
+      - "./agents:/app/agents:ro"
+      - "./tools:/app/tools:ro"
+      - "./risk:/app/risk:ro"
+      - "./signals:/app/signals:ro"
+      - "./user_data/config.paper.json:/app/user_data/config.paper.json:ro"
+      - "./user_data/shadow:/app/user_data/shadow"
+    command: ["python", "-m", "agents.run"]

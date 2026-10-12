@@ -1,11 +1,17 @@
 """Agentlər: kodla hesablanan faktlar və kölgə portfel (LLM-siz, təmiz kod)."""
 
+from pathlib import Path
+
 import numpy as np
 import pandas as pd
 import pytest
 
-from agents.facts import risk_facts, technical_facts
-from agents.shadow import FEE, RISK_PCT, ShadowBook
+if not (Path(__file__).resolve().parent.parent / "agents").exists():
+    # Freqtrade konteynerində agents/ mount olunmur — bu testlər host/agent imicindədir
+    pytest.skip("agents/ yoxdur (Freqtrade konteyneri)", allow_module_level=True)
+
+from agents.facts import risk_facts, technical_facts  # noqa: E402
+from agents.shadow import FEE, RISK_PCT, ShadowBook  # noqa: E402
 
 T = lambda s: pd.Timestamp(s, tz="UTC")  # noqa: E731
 

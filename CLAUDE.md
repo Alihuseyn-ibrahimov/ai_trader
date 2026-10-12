@@ -68,6 +68,13 @@ ai_trader/
 │   ├── uptime.py             # Faza 1: meyar 7 — heartbeat logundan 4h şam emalı
 │   ├── market_brief.py       # gündəlik AI bazar icmalı (Groq + RSS), rəqəm yoxlaması; ticarətə toxunmur
 │   └── tax_report.py         # vergi jurnalı: AZN (CBAR), Bakı ili, 14% — Faza 2 hazırlığı
+├── agents/                   # çoxagentli analiz + KÖLGƏ qərar (icra YOX); ayrıca konteyner, /app
+│   ├── facts.py              # agentlərə faktlar (RSI, ATR%, korrelyasiya, BTC DD) — kodla
+│   ├── schemas.py, prompts.py# pydantic çıxış sxemləri; promptlar + PROMPT_VERSION (dəyişsə sınaq sıfırlanır)
+│   ├── graph.py              # LangGraph: texniki ‖ xəbər ‖ risk → supervayzer; fail-safe GÖZLƏ
+│   ├── shadow.py             # kölgə portfel: paper ilə eyni risk qaydaları (0.5%, 3×ATR, maks. 2)
+│   ├── run.py                # gündəlik dövr → user_data/shadow/ (book.json, decisions.csv, runs.jsonl)
+│   └── Dockerfile, requirements.txt  # python 3.13-slim, versiyalar sabit
 ├── signals/                  # SAF pandas siqnal məntiqi, konteynerdə /freqtrade/signals (ro)
 │   ├── indicators.py         # ema, atr (Wilder), rsi (Wilder), bollinger (ddof=0)
 │   ├── tags.py               # enter_tag-da stop məsafəsi: "ad|sd=<məsafə>"
@@ -219,6 +226,17 @@ docker compose run --rm --entrypoint python freqtrade /freqtrade/tools/parity.py
 - `parity` üçün əvvəl eyni dövrə `backtesting --config user_data/config.paper.json --export trades`.
 - `tax_report.py` CBAR-dan USD/AZN çəkir (keş: `user_data/cbar_usd_azn.csv`), CSV: `user_data/tax/`
   (ikisi də gitignore-dadır). Dry-run DB üçün "PAPER — real vergi deyil" yazır.
+
+### Agentlər (kölgə rejimi, plan `.planning/2026-10-12-ai-trader-agents/`)
+
+```bash
+docker compose build agents
+docker compose run --rm -T agents python -m agents.run          # çap edir, göndərmir
+./deploy/agents_shadow.sh                                        # serverdə: --send (cron 09:10 Bakı)
+```
+
+Testlər langgraph tələb edir (Freqtrade konteynerində skip olunur) — agent imicində işlət:
+`docker run --rm -v ./agents:/app/agents:ro -v ./tools:/app/tools:ro -v ./risk:/app/risk:ro -v ./signals:/app/signals:ro -v ./tests:/app/tests:ro ai_trader_agents:1 python -m pytest -q -p no:cacheprovider tests/test_agents_core.py tests/test_agents_graph.py tests/test_agents_run.py`
 
 ## Bilinən problemlər
 

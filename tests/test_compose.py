@@ -44,7 +44,8 @@ def test_code_mounted_read_only():
 def test_env_example_has_names_but_no_values():
     lines = [l for l in (ROOT / ".env.example").read_text().splitlines() if l and not l.startswith("#")]
     keys = {l.split("=", 1)[0]: l.split("=", 1)[1] for l in lines}
-    assert set(keys) == {"FREQTRADE__TELEGRAM__TOKEN", "FREQTRADE__TELEGRAM__CHAT_ID", "GROQ_API_KEY"}
+    assert set(keys) == {"FREQTRADE__TELEGRAM__TOKEN", "FREQTRADE__TELEGRAM__CHAT_ID", "GROQ_API_KEY",
+                         "LANGSMITH_API_KEY"}
     assert all(v == "" for v in keys.values())
 
 
@@ -64,3 +65,43 @@ def test_install_cron_schedules_market_brief_after_report():
     assert "args=(--send)" in brief  # arqumentsiz (cron) → göndər
     # açar bot-un mühitinə yox, yalnız icmal prosesinə; komanda sətrində dəyər görünmür
     assert "-e GROQ_API_KEY=" not in brief
+
+
+AGENTS = COMPOSE["services"]["agents"]
+
+
+def test_agents_service_is_separate_and_not_started_by_up():
+    assert AGENTS["build"] == "./agents" and "freqtrade" not in AGENTS.get("image", "")
+    assert AGENTS["profiles"] == ["agents"]          # `up -d` onu başlatmır, yalnız `run`
+    assert AGENTS["restart"] == "no" and "ports" not in AGENTS
+
+
+def test_agents_cannot_touch_bot():
+    vols = AGENTS["volumes"]
+    writable = [v for v in vols if not v.endswith(":ro")]
+    assert writable == ["./user_data/shadow:/app/user_data/shadow"]   # yeganə yazıla bilən yer
+    for d in ("agents", "tools", "risk", "signals"):
+        assert f"./{d}:/app/{d}:ro" in vols
+    assert "./user_data/config.paper.json:/app/user_data/config.paper.json:ro" in vols
+    assert not any(v.startswith("./user_data:") or "sqlite" in v for v in vols)
+
+
+def test_agents_secrets_from_env_file_and_tracing_project_named():
+    assert AGENTS["env_file"] == [{"path": ".env", "required": True}]
+    env = AGENTS["environment"]
+    assert env == {"LANGSMITH_TRACING": "true", "LANGSMITH_PROJECT": "ai-trader-agents"}
+    assert AGENTS["mem_limit"] == "512m"
+
+
+def test_agents_requirements_pinned():
+    lines = [l for l in (ROOT / "agents" / "requirements.txt").read_text().splitlines()
+             if l and not l.startswith("#")]
+    assert lines and all("==" in l for l in lines)
+
+
+def test_install_cron_schedules_agents_after_brief():
+    script = (ROOT / "deploy" / "install_cron.sh").read_text()
+    assert "agents_shadow.sh" in script and "local_hm 310" in script   # 05:10 UTC = 09:10 Bakı
+    run = (ROOT / "deploy" / "agents_shadow.sh").read_text()
+    assert "docker compose run --rm -T agents python -m agents.run" in run
+    assert "args=(--send)" in run

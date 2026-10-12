@@ -1,0 +1,11 @@
+# Versiyalar SABİTDİR (lokal testlər bu dəstlə keçib). Dəyişiklik = yeni test dövrü.
+langgraph==1.2.14
+langchain-core==1.6.9
+langchain-groq==1.1.3
+langsmith==0.14.7
+groq==0.37.1
+pydantic==2.14.1
+pandas==3.0.6
+numpy==2.5.4
+ccxt==4.5.85
+pytest==9.0.3

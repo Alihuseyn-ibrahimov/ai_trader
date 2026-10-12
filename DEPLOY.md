@@ -77,6 +77,23 @@ ssh -i $K root@91.99.149.63 "cd /opt/ai_trader && ./deploy/daily_report.sh && ./
 - LLM alınmasa (açar yoxdur, Groq xətası, uydurma rəqəm), faktlar cədvəli yenə gəlir və
   "⚠️ AI icmalı bu gün alınmadı (səbəb)" yazılır.
 
+### 1.8 Agentlər — analiz + KÖLGƏ qərar (LangGraph + LangSmith, 09:10 Bakı)
+Plan: `.planning/2026-10-12-ai-trader-agents/task_plan.md`. Qərarlar **icra olunmur**.
+Ayrıca konteyner (`agents` servisi, profile — `up -d` onu başlatmır); paper bot restart olunmur.
+1. smith.langchain.com → Settings → API Keys → açar yarat. Lokal `ai_trader\.env`-ə
+   `LANGSMITH_API_KEY=...` əlavə et və bölmə 1.4 ilə göndər. **Açarı heç kimə (çata da) göndərmə.**
+2. Paketi yenilə (bölmə 1.2–1.3). `paper` konteynerinə toxunma (sabitlik həftəsi).
+3. Imici qur, `shadow` qovluğunu hazırla, əl ilə bir dəfə sına, cron-u yenilə:
+   ```powershell
+   ssh -i $K root@91.99.149.63 "cd /opt/ai_trader && docker compose build agents && mkdir -p user_data/shadow && chown 1000:1000 user_data/shadow && ./deploy/agents_shadow.sh && ./deploy/install_cron.sh"
+   ```
+4. Yoxla (mənbədən): Telegram-da "🕶 KÖLGƏ — icra olunmur" mesajı; serverdə
+   `tail -3 user_data/shadow/decisions.csv`; LangSmith-də `ai-trader-agents` layihəsində 4 LLM çağırışı.
+- Eyni Bakı günündə ikinci işləmə bloklanır (kölgə iki dəfə alış etməsin). Təkrar sınaq:
+  `./deploy/agents_shadow.sh --force` (DİQQƏT: kölgə portfelə təsir edir — yalnız sınaq günü).
+- Agent uğursuz olsa mesajda "UĞURSUZ" görünür; supervayzer uğursuz olsa hamısı GÖZLƏ.
+- Prompt dəyişsə (`agents/prompts.py`, `PROMPT_VERSION`) kölgə sınağı sıfırdan başlayır.
+
 ## 2. Sabitlik həftəsi və T0 (plan Phase 1.4)
 
 1. Deploy-dan sonra **7 gün** gözlə. Gündəlik Telegram hesabatı gəlməlidir.
@@ -110,6 +127,7 @@ ssh -i $K root@91.99.149.63 "cd /opt/ai_trader && docker compose up -d paper && 
 | Vəziyyət | `ssh -i $K root@91.99.149.63 "cd /opt/ai_trader && docker compose ps paper"` |
 | Son log | `ssh -i $K root@91.99.149.63 "cd /opt/ai_trader && docker compose logs --tail 30 paper"` |
 | Risk auditi | `ssh -i $K root@91.99.149.63 "cd /opt/ai_trader && docker compose exec -T paper python /freqtrade/tools/risk_audit.py TrendEmaAtr --config /freqtrade/user_data/config.paper.json --db"` |
+| Kölgə qərarları | `ssh -i $K root@91.99.149.63 "cd /opt/ai_trader && tail -14 user_data/shadow/decisions.csv && tail -5 user_data/logs/cron_agents.log"` |
 | Dayandır (plan §5) | `ssh -i $K root@91.99.149.63 "cd /opt/ai_trader && docker compose stop paper"` |
 
 Telegram əmrləri: `/status`, `/balance`, `/profit`, `/daily`, `/whitelist`.
