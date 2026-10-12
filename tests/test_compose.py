@@ -105,3 +105,10 @@ def test_install_cron_schedules_agents_after_brief():
     run = (ROOT / "deploy" / "agents_shadow.sh").read_text()
     assert "docker compose run --rm -T agents python -m agents.run" in run
     assert "args=(--send)" in run
+
+
+def test_install_cron_schedules_monthly_shadow_compare():
+    script = (ROOT / "deploy" / "install_cron.sh").read_text()
+    assert "monthly_compare.sh" in script and "local_hm 335) 1 * *" in script  # ayın 1-i 09:35 Bakı
+    run = (ROOT / "deploy" / "monthly_compare.sh").read_text()
+    assert "exec -T paper python /freqtrade/tools/shadow_compare.py" in run and "args=(--send)" in run

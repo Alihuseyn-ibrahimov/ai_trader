@@ -99,6 +99,11 @@ class ShadowBook:
                 events.append((pair, "açıldı"))
         return events
 
+    def mtm_equity(self, prices: dict[str, float]) -> float:
+        """Reallaşmış kapital + açıq mövqelərin cari qiymətlə (çıxış komissiyası daxil) nəticəsi."""
+        return self.equity + sum(p.amount * prices[p.pair] * (1 - FEE) - p.amount * p.entry * (1 + FEE)
+                                 for p in self.positions.values())
+
     def save(self, path: Path) -> None:
         path.parent.mkdir(parents=True, exist_ok=True)
         data = {"equity": self.equity, "trades": self.trades,

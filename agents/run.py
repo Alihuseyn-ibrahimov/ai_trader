@@ -70,6 +70,15 @@ def _failed(result: dict) -> list[str]:
     return [n for n, r in result["reports"].items() if not r.get("ok")]
 
 
+def record_equity(path: Path, book: ShadowBook, facts: dict, now: pd.Timestamp) -> None:
+    """Gündəlik MTM kapital (Bakı günü) — paper_equity.csv ilə eyni format (A.7 müqayisəsi)."""
+    from paper_report import record_snapshot
+
+    path.parent.mkdir(parents=True, exist_ok=True)
+    prices = {p: f["price"] for p, f in facts.items()}
+    record_snapshot(path, now.tz_convert(BAKU), book.mtm_equity(prices))
+
+
 def decision_rows(result: dict, facts: dict, now: pd.Timestamp, version: str) -> list[dict]:
     d = result["decision"]
     details = {x["pair"]: x for x in d.get("details", [])}
@@ -197,6 +206,7 @@ def main() -> int:
 
     book.save(book_path)
     append_rows(decisions, decision_rows(result, facts, now, PROMPT_VERSION))
+    record_equity(args.state_dir / "equity.csv", book, facts, now)
     with (args.state_dir / "runs.jsonl").open("a", encoding="utf-8") as f:  # tam audit izi
         f.write(json.dumps({"time": now.isoformat(), "prompt_version": PROMPT_VERSION,
                             "facts": facts, "risk_facts": rfacts, "news": news, **result},

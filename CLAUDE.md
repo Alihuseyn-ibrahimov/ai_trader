@@ -67,13 +67,14 @@ ai_trader/
 │   ├── parity.py             # Faza 1: meyar 6 — paper ↔ backtest uyğunluğu
 │   ├── uptime.py             # Faza 1: meyar 7 — heartbeat logundan 4h şam emalı
 │   ├── market_brief.py       # gündəlik AI bazar icmalı (Groq + RSS), rəqəm yoxlaması; ticarətə toxunmur
+│   ├── shadow_compare.py     # aylıq: kölgə (agentlər) ↔ TrendEmaAtr paper, agent plan §5
 │   └── tax_report.py         # vergi jurnalı: AZN (CBAR), Bakı ili, 14% — Faza 2 hazırlığı
 ├── agents/                   # çoxagentli analiz + KÖLGƏ qərar (icra YOX); ayrıca konteyner, /app
 │   ├── facts.py              # agentlərə faktlar (RSI, ATR%, korrelyasiya, BTC DD) — kodla
 │   ├── schemas.py, prompts.py# pydantic çıxış sxemləri; promptlar + PROMPT_VERSION (dəyişsə sınaq sıfırlanır)
 │   ├── graph.py              # LangGraph: texniki ‖ xəbər ‖ risk → supervayzer; fail-safe GÖZLƏ
 │   ├── shadow.py             # kölgə portfel: paper ilə eyni risk qaydaları (0.5%, 3×ATR, maks. 2)
-│   ├── run.py                # gündəlik dövr → user_data/shadow/ (book.json, decisions.csv, runs.jsonl)
+│   ├── run.py                # gündəlik dövr → user_data/shadow/ (book.json, decisions.csv, runs.jsonl, equity.csv)
 │   └── Dockerfile, requirements.txt  # python 3.13-slim, versiyalar sabit
 ├── signals/                  # SAF pandas siqnal məntiqi, konteynerdə /freqtrade/signals (ro)
 │   ├── indicators.py         # ema, atr (Wilder), rsi (Wilder), bollinger (ddof=0)

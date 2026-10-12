@@ -114,3 +114,14 @@ def test_tracing_disabled_without_langsmith_key():
     assert configure_tracing(env) is not None and env["LANGSMITH_TRACING"] == "false"
     env = {"LANGSMITH_TRACING": "true", "LANGSMITH_API_KEY": "x"}
     assert configure_tracing(env) is None and env["LANGSMITH_TRACING"] == "true"
+
+
+def test_record_equity_snapshot_daily_mtm(tmp_path):
+    from agents.run import record_equity
+    book = ShadowBook()
+    run_cycle(book, FakeGraph({"A/USDT": "AL", "B/USDT": "GÖZLƏ"}), PAIRS, FACTS, {}, {}, [], NOW)
+    path = tmp_path / "equity.csv"
+    record_equity(path, book, FACTS, NOW)
+    df = pd.read_csv(path)
+    assert list(df["date"]) == ["2026-10-12"]
+    assert df["equity"].iloc[0] == pytest.approx(round(book.mtm_equity({"A/USDT": 10.0}), 2))

@@ -124,3 +124,12 @@ def test_state_roundtrip(tmp_path):
 def test_load_missing_state_starts_fresh(tmp_path):
     c = ShadowBook.load(tmp_path / "yoxdur.json")
     assert c.equity == 10_000.0 and not c.positions
+
+
+def test_mtm_equity_includes_open_positions_with_fees():
+    b = book()
+    b.apply({"A/USDT": "AL"}, {"A/USDT": 10.0}, {"A/USDT": 0.5}, T("2026-10-12 05:10"), 2)
+    p = b.positions["A/USDT"]
+    expected = b.equity + p.amount * 11.0 * (1 - FEE) - p.amount * 10.0 * (1 + FEE)
+    assert b.mtm_equity({"A/USDT": 11.0}) == pytest.approx(expected)
+    assert ShadowBook().mtm_equity({}) == 10_000.0

@@ -93,6 +93,10 @@ Ayrıca konteyner (`agents` servisi, profile — `up -d` onu başlatmır); paper
   `./deploy/agents_shadow.sh --force` (DİQQƏT: kölgə portfelə təsir edir — yalnız sınaq günü).
 - Agent uğursuz olsa mesajda "UĞURSUZ" görünür; supervayzer uğursuz olsa hamısı GÖZLƏ.
 - Prompt dəyişsə (`agents/prompts.py`, `PROMPT_VERSION`) kölgə sınağı sıfırdan başlayır.
+- Aylıq müqayisə (A.7, ayın 1-i 09:35): `./deploy/monthly_compare.sh` — kölgə ↔ TrendEmaAtr,
+  eyni dövr, eyni düsturlar. Əl ilə baxış (göndərmədən): `./deploy/monthly_compare.sh --start 2026-10-19`.
+  Mənbələr: `user_data/shadow/equity.csv`, `shadow/book.json`, `paper_equity.csv`, paper DB.
+  **T0 sıfırlamasında** `paper_equity.csv` silinir — müqayisə avtomatik T0-dan başlayır.
 
 ## 2. Sabitlik həftəsi və T0 (plan Phase 1.4)
 
