@@ -3,6 +3,7 @@
 LangSmith izləmə LangChain/LangGraph tərəfindən avtomatik olur (LANGSMITH_TRACING=true).
 """
 
+import json
 import re
 import sys
 from pathlib import Path
@@ -40,13 +41,21 @@ class State(TypedDict, total=False):
 
 
 def _extract_json(text: str) -> str:
+    """İlk TAM JSON obyekti (kod çəpəri, öndəki/arxadakı mətn və ikinci obyekt atılır)."""
     text = re.sub(r"^```(?:json)?\s*|\s*```$", "", text.strip())
-    i, k = text.find("{"), text.rfind("}")
-    return text[i:k + 1] if i != -1 and k > i else text
+    i = text.find("{")
+    if i == -1:
+        return text
+    try:
+        _, end = json.JSONDecoder().raw_decode(text, i)
+    except json.JSONDecodeError:
+        return text[i:]  # pydantic dəqiq JSON xətasını göstərəcək
+    return text[i:end]
 
 
-def run_agent(llm, system: str, user: str, schema, allowed: set[float], check=None):
-    """(obyekt, None) uğurda; (None, səbəb) uğursuzluqda. Xəta olsa 1 düzəliş cəhdi."""
+def run_agent(llm, system: str, user: str, schema, allowed: set[float], check=None, name: str = ""):
+    """(obyekt, None) uğurda; (None, səbəb) uğursuzluqda. Xəta olsa 1 düzəliş cəhdi.
+    Rədd edilən xam cavab stderr-ə (cron logu) yazılır — Telegram-a getmir."""
     messages = [SystemMessage(system), HumanMessage(user)]
     err = None
     for _ in range(MAX_ATTEMPTS):
@@ -65,6 +74,7 @@ def run_agent(llm, system: str, user: str, schema, allowed: set[float], check=No
             err = ("faktlarda olmayan rəqəmlər: " + ", ".join(bad)) if bad else (check(obj) if check else None)
             if err is None:
                 return obj, None
+        print(f"[{name}] RƏDD ({err}):\n{text[:3000]}\n", file=sys.stderr)
         messages += [AIMessage(text), HumanMessage(f"Cavab qəbul edilmədi ({err}). Qaydalara uyğun yenidən yaz.")]
     return None, err
 
@@ -89,7 +99,7 @@ def build_graph(llms: dict):
     def report(name, schema, system, make_user, needs_pairs=True):
         def node(state: State):
             obj, err = run_agent(llms[name], system, make_user(state), schema, _allowed(state),
-                                 _pairs_check(state["pairs"]) if needs_pairs else None)
+                                 _pairs_check(state["pairs"]) if needs_pairs else None, name)
             return {"reports": {name: {"ok": obj is not None,
                                        "data": obj.model_dump() if obj else None, "error": err}}}
         return node
@@ -110,7 +120,7 @@ def build_graph(llms: dict):
         user = prompts.supervisor_user_prompt(state["pairs"], state["facts"], reports,
                                               state.get("positions", []), state["now"])
         obj, err = run_agent(llms["supervayzer"], prompts.SUPERVISOR_SYSTEM, user, SupervisorReport,
-                             _allowed(state), _pairs_check(state["pairs"]))
+                             _allowed(state), _pairs_check(state["pairs"]), "supervayzer")
         if obj is None:  # fail-safe
             return {"decision": {"ok": False, "error": err, "max_new": max_new, "summary": None,
                                  "actions": {p: "GÖZLƏ" for p in state["pairs"]}, "details": []}}

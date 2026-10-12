@@ -102,3 +102,15 @@ def test_run_agent_strips_code_fences():
     llm = fake("```json\n" + RISK_OK + "\n```")
     obj, err = run_agent(llm, "sys", "user", RiskReport, allowed={0.81, 3.5})
     assert err is None and obj.max_new == 1
+
+
+def test_run_agent_ignores_trailing_text_after_json():
+    llm = fake(RISK_OK + "\n\n" + RISK_OK + " izah: risk normaldır")
+    obj, err = run_agent(llm, "sys", "user", RiskReport, allowed={0.81, 3.5})
+    assert err is None and obj.max_new == 1
+
+
+def test_rejected_raw_reply_is_logged_to_stderr(capsys):
+    run_agent(fake("bu JSON deyil", "yenə yox"), "sys", "user", RiskReport, allowed=set(), name="risk")
+    log = capsys.readouterr().err
+    assert "[risk]" in log and "bu JSON deyil" in log and "yenə yox" in log

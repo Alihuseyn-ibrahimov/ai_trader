@@ -106,3 +106,11 @@ def test_message_when_supervisor_failed_says_all_wait():
 def test_h4_frame_converts_ccxt_ms_to_utc_dates():
     df = h4_frame([[1760248800000, 1.0, 2.0, 0.5, 1.5, 10.0]])
     assert df["date"].iloc[0] == pd.Timestamp("2025-10-12 06:00", tz="UTC")
+
+
+def test_tracing_disabled_without_langsmith_key():
+    from agents.run import configure_tracing
+    env = {"LANGSMITH_TRACING": "true"}
+    assert configure_tracing(env) is not None and env["LANGSMITH_TRACING"] == "false"
+    env = {"LANGSMITH_TRACING": "true", "LANGSMITH_API_KEY": "x"}
+    assert configure_tracing(env) is None and env["LANGSMITH_TRACING"] == "true"

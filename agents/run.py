@@ -35,6 +35,14 @@ COLUMNS = ["time", "prompt_version", "pair", "action", "confidence", "price", "o
 TELEGRAM_LIMIT = 4000
 
 
+def configure_tracing(env) -> str | None:
+    """LangSmith açarı yoxdursa izləməni söndür (401 xətaları logu doldurmasın). Qeyd qaytarır."""
+    if env.get("LANGSMITH_API_KEY"):
+        return None
+    env["LANGSMITH_TRACING"] = "false"
+    return "LANGSMITH_API_KEY yoxdur — LangSmith izləməsi söndürüldü"
+
+
 def h4_frame(rows: list) -> pd.DataFrame:
     df = pd.DataFrame(rows, columns=["date", "open", "high", "low", "close", "volume"])
     df["date"] = pd.to_datetime(df["date"], unit="ms", utc=True)
@@ -154,6 +162,9 @@ def make_llms(key: str, model: str) -> dict:
 
 
 def main() -> int:
+    note = configure_tracing(os.environ)  # langchain import-larından ƏVVƏL
+    if note:
+        print(f"QEYD: {note}", file=sys.stderr)
     from market_brief import DEFAULT_MODEL, fetch_news
     from paper_report import send_telegram
 
