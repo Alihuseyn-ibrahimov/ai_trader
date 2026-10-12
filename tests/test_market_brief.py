@@ -255,3 +255,22 @@ def test_coarse_rounding_that_distorts_is_caught():
     allowed = allowed_numbers(sol, [])
     assert unverified_numbers("SOL 110 dollar ətrafında", allowed) == []   # 2 əhəmiyyətli rəqəm
     assert unverified_numbers("SOL 100 dollar ətrafında", allowed) == ["100"]  # 112 → 100 təhrifdir
+
+
+@pytest.mark.parametrize("sep", [" ", " ", " ", " ", " "])
+def test_thousands_separated_by_any_unicode_space(sep):
+    # Regressiya (serverdə gpt-oss-120b): "84 043.99" dar boşluqla (U+202F) yazılmışdı və
+    # "84" + "043.99" kimi bölünüb rədd edilirdi — halbuki fakt düzgün köçürülmüşdü
+    facts = {"BTC/USDT": {"price": 84043.99, "chg_24h": 1.23, "chg_7d": -2.0, "chg_30d": 8.7,
+                          "vol_30d": 37.89, "trend": "yuxarı"},
+             "ETH/USDT": {"price": 2565.68, "chg_24h": 2.59, "chg_7d": -5.3, "chg_30d": 1.6,
+                          "vol_30d": 43.75, "trend": "aşağı"}}
+    text = (f"Bitcoin 84{sep}043.99 USDT səviyyəsində, 24‑saat ərzində 1.23 % artıb. "
+            f"Ethereum isə 2{sep}565.68 USDT qiymətindədir, 30‑günlük volatillik 43.75 %‑dir.")
+    assert unverified_numbers(text, allowed_numbers(facts, [])) == []
+
+
+def test_numbers_on_separate_lines_are_not_joined():
+    facts = {"X/USDT": {"price": 84.0, "chg_24h": 1.0, "chg_7d": 1.0, "chg_30d": 1.0,
+                        "vol_30d": 1.0, "trend": "yuxarı"}}
+    assert unverified_numbers("qiymət 84\n123 başqa", allowed_numbers(facts, [])) == ["123"]

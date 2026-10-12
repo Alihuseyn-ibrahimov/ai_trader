@@ -105,11 +105,12 @@ def parse_rss(xml_text: str, now: pd.Timestamp, hours: int = 24) -> list[str]:
 
 # Rəqəm: boşluqla min qrupları ("84 000") və ya adi ("84002.90", "2,31"); ardınca istəyə görə
 # min miqyası ("84 min", "84 mindən", "84K")
-_NUM = re.compile(r"(\d{1,3}(?:[ \u00a0]\d{3})+(?:[.,]\d+)?|\d+(?:[.,]\d+)*)(\s*(?:min\w*|[Kk])(?!\w))?")
+# Min ayırıcısı: sətir sonundan başqa istənilən Unicode boşluğu (LLM-lər U+202F/U+2009 yazır)
+_NUM = re.compile(r"(\d{1,3}(?:[^\S\r\n]\d{3})+(?:[.,]\d+)?|\d+(?:[.,]\d+)*)([^\S\r\n]*(?:min\w*|[Kk])(?!\w))?")
 
 
 def _normalize(token: str) -> str:
-    token = token.replace(" ", "").replace("\u00a0", "")
+    token = re.sub(r"\s", "", token)
     if "," in token and "." in token:
         return token.replace(",", "")
     if "," in token:
