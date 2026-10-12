@@ -65,6 +65,18 @@ ssh -i $K root@91.99.149.63 "cd /opt/ai_trader && ./deploy/daily_report.sh && ./
 - Mövcud cron işlərinə (tv-monitor) toxunmur. Təkrar işlədilsə dublikat yaratmır.
   Çıxışda tam crontab görünür; köhnə sətirlərin yerində olduğunu yoxla.
 
+### 1.7 AI bazar icmalı (Groq, 09:05 Bakı)
+1. Lokal `ai_trader\.env`-ə `GROQ_API_KEY=...` sətrini əlavə et (`notepad .env`), sonra
+   bölmə 1.4 ilə `.env`-i yenidən göndər (icazə 600).
+2. Paketi yenilə (bölmə 1.2–1.3), sonra əl ilə sına və cron-u yenilə:
+   ```powershell
+   ssh -i $K root@91.99.149.63 "cd /opt/ai_trader && ./deploy/market_brief.sh && ./deploy/install_cron.sh"
+   ```
+- Açar bot konteynerinin mühitinə düşmür: `market_brief.sh` onu `.env`-dən oxuyub yalnız
+  icmal prosesinə ötürür, ona görə bot-u restart etmək lazım deyil.
+- LLM alınmasa (açar yoxdur, Groq xətası, uydurma rəqəm), faktlar cədvəli yenə gəlir və
+  "⚠️ AI icmalı bu gün alınmadı (səbəb)" yazılır.
+
 ## 2. Sabitlik həftəsi və T0 (plan Phase 1.4)
 
 1. Deploy-dan sonra **7 gün** gözlə. Gündəlik Telegram hesabatı gəlməlidir.

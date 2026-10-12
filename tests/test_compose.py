@@ -44,7 +44,7 @@ def test_code_mounted_read_only():
 def test_env_example_has_names_but_no_values():
     lines = [l for l in (ROOT / ".env.example").read_text().splitlines() if l and not l.startswith("#")]
     keys = {l.split("=", 1)[0]: l.split("=", 1)[1] for l in lines}
-    assert set(keys) == {"FREQTRADE__TELEGRAM__TOKEN", "FREQTRADE__TELEGRAM__CHAT_ID"}
+    assert set(keys) == {"FREQTRADE__TELEGRAM__TOKEN", "FREQTRADE__TELEGRAM__CHAT_ID", "GROQ_API_KEY"}
     assert all(v == "" for v in keys.values())
 
 
@@ -54,3 +54,12 @@ def test_resource_limits_protect_shared_vps():
     log = PAPER["logging"]
     assert log["driver"] == "json-file"
     assert log["options"] == {"max-size": "10m", "max-file": "3"}
+
+
+def test_install_cron_schedules_market_brief_after_report():
+    script = (ROOT / "deploy" / "install_cron.sh").read_text()
+    assert "market_brief.sh" in script and "local_hm 305" in script  # 05:05 UTC = 09:05 Bakı
+    brief = (ROOT / "deploy" / "market_brief.sh").read_text()
+    assert "exec -T -e GROQ_API_KEY paper python /freqtrade/tools/market_brief.py --send" in brief
+    # açar bot-un mühitinə yox, yalnız icmal prosesinə; komanda sətrində dəyər görünmür
+    assert "-e GROQ_API_KEY=" not in brief

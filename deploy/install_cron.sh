@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Cron işlərini quraşdırır (təkrar işlədilsə dublikat yaratmır).
 # Cron serverin YERLİ saatı ilə işləyir (Hetzner: Asia/Baku) — vaxtlar UTC-dən çevrilir:
-# hesabat 05:00 UTC (= 09:00 Bakı), uptime ayın 1-i 05:30 UTC.
+# hesabat 05:00 UTC (= 09:00 Bakı), AI icmalı 05:05 UTC, uptime ayın 1-i 05:30 UTC.
 # Yalnız `date +%z` istifadə olunur: Ubuntu 26.04-ün uutils `date`-i `-d "05:00 UTC"`-ni
 # GNU kimi çevirmir (serverdə 0 5 yazılmışdı). Yay/qış saatı olan yerdə yenidən işlət.
 # Server başqa layihələrlə paylaşılır: mövcud crontab ƏVVƏLCƏ tam oxunur, sonra yazılır
@@ -23,6 +23,7 @@ current="$(crontab -l 2>/dev/null | grep -v -- "$mark" || true)"
 {
   [ -n "$current" ] && printf '%s\n' "$current"
   echo "$(local_hm 300) * * * $dir/daily_report.sh >> $logs/cron_report.log 2>&1 $mark"
+  echo "$(local_hm 305) * * * $dir/market_brief.sh >> $logs/cron_brief.log 2>&1 $mark"
   echo "$(local_hm 330) 1 * * $dir/monthly_uptime.sh >> $logs/cron_uptime.log 2>&1 $mark"
 } | crontab -
 echo "Saat qurşağı sürüşməsi: $z"
