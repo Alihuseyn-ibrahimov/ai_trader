@@ -110,3 +110,5 @@ Telegram əmrləri: `/status`, `/balance`, `/profit`, `/daily`, `/whitelist`.
 - `.sh` faylları LF olmalıdır. `ai_trader/.gitattributes` bunu təmin edir. CRLF olsa
   `bad interpreter` xətası çıxır.
 - `api.coingecko.com` xətaları yalnız USD göstəricisinə aiddir, ticarətə təsir etmir.
+- Ubuntu 26.04-də `date` = uutils (0.8.0): `date -d '05:00 UTC'` saat qurşağını nəzərə almır
+  (05:00 qaytarır). Skriptlərdə vaxt çevirmək üçün yalnız `date +%z` istifadə et.
