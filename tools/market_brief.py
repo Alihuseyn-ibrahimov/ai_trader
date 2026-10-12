@@ -9,7 +9,7 @@ Pozulmaz qaydalar:
 
 Serverdə (cron, hesabatdan sonra):
     docker compose exec -T paper python /freqtrade/tools/market_brief.py --send
-Açar: GROQ_API_KEY (yalnız serverdəki .env). Model: GROQ_MODEL (default llama-3.3-70b-versatile).
+Açar: GROQ_API_KEY (yalnız serverdəki .env). Model: GROQ_MODEL (default openai/gpt-oss-120b).
 """
 
 import argparse
@@ -33,7 +33,8 @@ from signals.indicators import ema  # noqa: E402
 CONFIG = Path("/freqtrade/user_data/config.paper.json")
 BAKU = "Asia/Baku"
 GROQ_URL = "https://api.groq.com/openai/v1/chat/completions"
-DEFAULT_MODEL = "llama-3.3-70b-versatile"
+# 2026-10-12: llama-3.3-70b-versatile Groq-da yoxdur (model_not_found); `--list-models` ilə yoxla
+DEFAULT_MODEL = "openai/gpt-oss-120b"
 FEEDS = ["https://www.coindesk.com/arc/outboundfeeds/rss/", "https://cointelegraph.com/rss"]
 MAX_HEADLINES = 15
 USER_AGENT = "Mozilla/5.0 (compatible; ai-trader-brief/1.0)"
@@ -160,8 +161,11 @@ def groq_payload(key: str, model: str, system: str, user_or_messages) -> tuple[s
         {"role": "user", "content": user_or_messages}]
     headers = {"Authorization": f"Bearer {key}", "Content-Type": "application/json",
                "User-Agent": USER_AGENT}
-    body = {"model": model, "temperature": 0.2, "max_tokens": 900,
+    body = {"model": model, "temperature": 0.2, "max_tokens": 2500,
             "messages": [{"role": "system", "content": system}, *msgs]}
+    if model.startswith("openai/gpt-oss"):
+        # Düşünmə tokenləri max_tokens-dən sərf olunur — az düşünsün, mətnə yer qalsın
+        body["reasoning_effort"] = "low"
     return GROQ_URL, headers, body
 
 
@@ -187,7 +191,7 @@ def groq_completer(key: str, model: str):
                 data = json.loads(resp.read())
         except urllib.error.HTTPError as e:
             raise RuntimeError(groq_error(e.code, e.read(), key)) from e
-        return data["choices"][0]["message"]["content"].strip()
+        return (data["choices"][0]["message"].get("content") or "").strip()
 
     return complete
 
@@ -213,6 +217,8 @@ def write_brief(complete, facts: dict, news: list[str], now: pd.Timestamp) -> tu
             text = complete(SYSTEM_PROMPT, messages)
         except Exception as e:  # noqa: BLE001 — istənilən API/şəbəkə xətası açıq göstərilir
             return None, f"{type(e).__name__}: {e}"
+        if not (text or "").strip():
+            return None, "LLM boş cavab qaytardı"
         bad = unverified_numbers(text, allowed)
         if not bad:
             return text, None

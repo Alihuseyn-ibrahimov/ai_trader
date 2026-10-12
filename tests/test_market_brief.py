@@ -202,3 +202,22 @@ def test_groq_error_message_includes_reason_but_never_key():
     assert msg.startswith("Groq HTTP 404") and "model_not_found" in msg and "does not exist" in msg
     assert "gsk_SECRET" not in groq_error(401, b'{"error":{"message":"Invalid API Key gsk_SECRET"}}', key="gsk_SECRET")
     assert groq_error(502, b"<html>bad gateway</html>", key="k") == "Groq HTTP 502"
+
+
+def test_default_model_exists_on_groq_and_reasoning_is_low():
+    # 2026-10-12 serverdə: llama-3.3-70b-versatile → model_not_found; hesabda openai/gpt-oss-120b var
+    from market_brief import DEFAULT_MODEL
+
+    assert DEFAULT_MODEL == "openai/gpt-oss-120b"
+    _, _, body = groq_payload("k", "openai/gpt-oss-120b", "s", "u")
+    assert body["reasoning_effort"] == "low" and body["max_tokens"] >= 2000
+    _, _, other = groq_payload("k", "qwen/qwen3.8-27b", "s", "u")
+    assert "reasoning_effort" not in other  # başqa modellərə tanınmayan parametr göndərilmir
+
+
+def test_empty_reply_is_failure_not_success():
+    from market_brief import write_brief
+
+    complete, _ = fake(["   "])
+    text, err = write_brief(complete, FACTS, NEWS, NOW)
+    assert text is None and "boş" in err
