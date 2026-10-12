@@ -165,6 +165,19 @@ def groq_payload(key: str, model: str, system: str, user_or_messages) -> tuple[s
     return GROQ_URL, headers, body
 
 
+def groq_error(code: int, body: bytes, key: str) -> str:
+    """Groq xətasının səbəbi (code + message). Açar mətndə görünsə gizlədilir."""
+    msg = f"Groq HTTP {code}"
+    try:
+        err = json.loads(body).get("error", {})
+        reason = " ".join(str(x) for x in (err.get("code"), err.get("message")) if x)
+    except (ValueError, AttributeError):
+        return msg
+    if reason:
+        msg += ": " + reason[:200]
+    return msg.replace(key, "***") if key else msg
+
+
 def groq_completer(key: str, model: str):
     def complete(system: str, messages: list) -> str:
         url, headers, body = groq_payload(key, model, system, messages)
@@ -173,10 +186,21 @@ def groq_completer(key: str, model: str):
             with urllib.request.urlopen(req, timeout=60) as resp:  # noqa: S310 (sabit https ünvanı)
                 data = json.loads(resp.read())
         except urllib.error.HTTPError as e:
-            raise RuntimeError(f"Groq HTTP {e.code}") from e
+            raise RuntimeError(groq_error(e.code, e.read(), key)) from e
         return data["choices"][0]["message"]["content"].strip()
 
     return complete
+
+
+def groq_models(key: str) -> list[str]:
+    req = urllib.request.Request("https://api.groq.com/openai/v1/models",
+                                 headers={"Authorization": f"Bearer {key}", "User-Agent": USER_AGENT})
+    try:
+        with urllib.request.urlopen(req, timeout=30) as resp:  # noqa: S310
+            data = json.loads(resp.read())
+    except urllib.error.HTTPError as e:
+        raise RuntimeError(groq_error(e.code, e.read(), key)) from e
+    return sorted(m["id"] for m in data.get("data", []))
 
 
 def write_brief(complete, facts: dict, news: list[str], now: pd.Timestamp) -> tuple[str | None, str | None]:
@@ -256,15 +280,19 @@ def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--config", type=Path, default=CONFIG)
     parser.add_argument("--send", action="store_true", help="Telegram-a göndər")
+    parser.add_argument("--list-models", action="store_true", help="Groq-da açıq modelləri göstər")
     args = parser.parse_args()
+    key = os.environ.get("GROQ_API_KEY", "")
+    if args.list_models:
+        print("\n".join(groq_models(key)) if key else "GROQ_API_KEY yoxdur")
+        return 0
 
     config = json.loads(args.config.read_text())
     now = pd.Timestamp.now(tz="UTC")
     facts = fetch_facts(config)
     news = fetch_news(now)
-    key = os.environ.get("GROQ_API_KEY", "")
     if key:
-        model = os.environ.get("GROQ_MODEL", DEFAULT_MODEL)
+        model = os.environ.get("GROQ_MODEL") or DEFAULT_MODEL
         text, err = write_brief(groq_completer(key, model), facts, news, now)
     else:
         text, err = None, "GROQ_API_KEY təyin edilməyib"

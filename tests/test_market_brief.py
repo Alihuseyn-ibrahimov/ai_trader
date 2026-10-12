@@ -191,3 +191,14 @@ def test_write_brief_reports_api_error():
     complete, _ = fake([RuntimeError("Groq HTTP 429")])
     text, err = write_brief(complete, FACTS, NEWS, NOW)
     assert text is None and "Groq HTTP 429" in err
+
+
+def test_groq_error_message_includes_reason_but_never_key():
+    # Regressiya (serverdə ilk işləmə): yalnız "Groq HTTP 404" görünürdü, səbəb yox idi
+    from market_brief import groq_error
+
+    body = b'{"error":{"message":"The model `llama-x` does not exist","type":"invalid_request_error","code":"model_not_found"}}'
+    msg = groq_error(404, body, key="gsk_SECRET")
+    assert msg.startswith("Groq HTTP 404") and "model_not_found" in msg and "does not exist" in msg
+    assert "gsk_SECRET" not in groq_error(401, b'{"error":{"message":"Invalid API Key gsk_SECRET"}}', key="gsk_SECRET")
+    assert groq_error(502, b"<html>bad gateway</html>", key="k") == "Groq HTTP 502"

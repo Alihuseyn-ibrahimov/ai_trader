@@ -60,6 +60,7 @@ def test_install_cron_schedules_market_brief_after_report():
     script = (ROOT / "deploy" / "install_cron.sh").read_text()
     assert "market_brief.sh" in script and "local_hm 305" in script  # 05:05 UTC = 09:05 Bakı
     brief = (ROOT / "deploy" / "market_brief.sh").read_text()
-    assert "exec -T -e GROQ_API_KEY paper python /freqtrade/tools/market_brief.py --send" in brief
+    assert "exec -T -e GROQ_API_KEY -e GROQ_MODEL paper python /freqtrade/tools/market_brief.py" in brief
+    assert "args=(--send)" in brief  # arqumentsiz (cron) → göndər
     # açar bot-un mühitinə yox, yalnız icmal prosesinə; komanda sətrində dəyər görünmür
     assert "-e GROQ_API_KEY=" not in brief
