@@ -221,3 +221,37 @@ def test_empty_reply_is_failure_not_success():
     complete, _ = fake(["   "])
     text, err = write_brief(complete, FACTS, NEWS, NOW)
     assert text is None and "boş" in err
+
+
+BIG = {"BTC/USDT": {"price": 84002.9, "chg_24h": 1.18, "chg_7d": -2.06, "chg_30d": 8.7,
+                    "vol_30d": 40.1, "trend": "yuxarı"}}
+
+
+@pytest.mark.parametrize("text", ["BTC 84 min dollar ətrafındadır.", "BTC ~84K səviyyəsində.",
+                                  "BTC 84 000 USDT", "BTC 84,0 min"])
+def test_thousands_rounding_of_a_fact_is_allowed(text):
+    # Regressiya (serverdə gpt-oss-120b): "84" faktlarda olmayan rəqəm kimi rədd edildi
+    assert unverified_numbers(text, allowed_numbers(BIG, [])) == []
+
+
+@pytest.mark.parametrize("text,bad", [("BTC 85 min dollar", "85"), ("BTC 90K", "90"),
+                                      ("BTC 84 dollar", "84")])
+def test_wrong_or_unscaled_rounding_is_still_caught(text, bad):
+    assert unverified_numbers(text, allowed_numbers(BIG, [])) == [bad]
+
+
+def test_rejected_text_is_reported_for_diagnostics():
+    from market_brief import write_brief
+
+    seen = []
+    complete, _ = fake(["BTC 90000.", "BTC 95000."])
+    write_brief(complete, FACTS, NEWS, NOW, on_reject=lambda t, bad: seen.append((t, bad)))
+    assert seen == [("BTC 90000.", ["90000"]), ("BTC 95000.", ["95000"])]
+
+
+def test_coarse_rounding_that_distorts_is_caught():
+    sol = {"SOL/USDT": {"price": 112.39, "chg_24h": 2.73, "chg_7d": -6.95, "chg_30d": 10.45,
+                        "vol_30d": 60.0, "trend": "qarışıq"}}
+    allowed = allowed_numbers(sol, [])
+    assert unverified_numbers("SOL 110 dollar ətrafında", allowed) == []   # 2 əhəmiyyətli rəqəm
+    assert unverified_numbers("SOL 100 dollar ətrafında", allowed) == ["100"]  # 112 → 100 təhrifdir

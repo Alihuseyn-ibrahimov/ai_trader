@@ -103,10 +103,13 @@ def parse_rss(xml_text: str, now: pd.Timestamp, hours: int = 24) -> list[str]:
 
 # --- rəqəm yoxlaması -----------------------------------------------------------------
 
-_NUM = re.compile(r"\d+(?:[.,]\d+)*")
+# Rəqəm: boşluqla min qrupları ("84 000") və ya adi ("84002.90", "2,31"); ardınca istəyə görə
+# min miqyası ("84 min", "84 mindən", "84K")
+_NUM = re.compile(r"(\d{1,3}(?:[ \u00a0]\d{3})+(?:[.,]\d+)?|\d+(?:[.,]\d+)*)(\s*(?:min\w*|[Kk])(?!\w))?")
 
 
 def _normalize(token: str) -> str:
+    token = token.replace(" ", "").replace("\u00a0", "")
     if "," in token and "." in token:
         return token.replace(",", "")
     if "," in token:
@@ -114,8 +117,13 @@ def _normalize(token: str) -> str:
     return token
 
 
+def _tokens(text: str) -> list[tuple[str, bool]]:
+    """(normallaşmış rəqəm, min miqyası varmı)."""
+    return [(_normalize(m.group(1)), bool(m.group(2))) for m in _NUM.finditer(text)]
+
+
 def _numbers(text: str) -> list[str]:
-    return [_normalize(t) for t in _NUM.findall(text)]
+    return [t for t, _ in _tokens(text)]
 
 
 def allowed_numbers(facts: dict, news: list[str], now: pd.Timestamp | None = None) -> set[float]:
@@ -130,13 +138,31 @@ def allowed_numbers(facts: dict, news: list[str], now: pd.Timestamp | None = Non
     return allowed
 
 
+def _matches(tok: str, n: float, allowed: set[float]) -> bool:
+    dec = len(tok.split(".")[1]) if "." in tok else 0
+    if any(abs(n - a) < 1e-9 or abs(n - round(a, dec)) < 1e-9 for a in allowed):
+        return True
+    # "84000" kimi tam ədəd faktın yuvarlaqlaşdırılmasıdır — ən azı 2 əhəmiyyətli rəqəm qalmalıdır
+    # (yoxsa 112 → "100" kobud təhrif keçərdi)
+    if dec == 0:
+        digits = tok.lstrip("0")
+        zeros = len(digits) - len(digits.rstrip("0"))
+        for z in range(1, min(zeros, len(digits) - 2) + 1):
+            if any(abs(n - round(a, -z)) < 1e-9 for a in allowed):
+                return True
+    return False
+
+
 def unverified_numbers(text: str, allowed: set[float]) -> list[str]:
-    """Mətndə faktlarda olmayan rəqəmlər. Faktın yuvarlaqlaşdırılmış forması da qəbul edilir."""
+    """Mətndə faktlarda olmayan rəqəmlər. Faktın yuvarlaqlaşdırılmış forması da qəbul edilir:
+    onluq ("2.3" ← 2.31), tam min ("84000" ← 84002.9), min miqyası ("84 min"/"84K" ← 84002.9)."""
     bad = []
-    for tok in _numbers(text):
+    for tok, thousands in _tokens(text):
         n = float(tok)
-        dec = len(tok.split(".")[1]) if "." in tok else 0
-        if not any(abs(n - a) < 1e-9 or abs(n - round(a, dec)) < 1e-9 for a in allowed):
+        ok = _matches(tok, n, allowed)
+        if not ok and thousands:
+            ok = _matches(tok, n, {a / 1000 for a in allowed})
+        if not ok:
             bad.append(tok)
     return bad
 
@@ -207,7 +233,8 @@ def groq_models(key: str) -> list[str]:
     return sorted(m["id"] for m in data.get("data", []))
 
 
-def write_brief(complete, facts: dict, news: list[str], now: pd.Timestamp) -> tuple[str | None, str | None]:
+def write_brief(complete, facts: dict, news: list[str], now: pd.Timestamp,
+                on_reject=None) -> tuple[str | None, str | None]:
     """(mətn, None) uğurda; (None, səbəb) uğursuzluqda. Uydurma rəqəmdə 1 düzəliş cəhdi."""
     allowed = allowed_numbers(facts, news, now)
     messages = [{"role": "user", "content": build_user_prompt(facts, news, now)}]
@@ -222,6 +249,8 @@ def write_brief(complete, facts: dict, news: list[str], now: pd.Timestamp) -> tu
         bad = unverified_numbers(text, allowed)
         if not bad:
             return text, None
+        if on_reject:
+            on_reject(text, bad)
         messages += [
             {"role": "assistant", "content": text},
             {"role": "user", "content": "Bu rəqəmlər faktlarda yoxdur: " + ", ".join(bad)
@@ -299,7 +328,11 @@ def main() -> int:
     news = fetch_news(now)
     if key:
         model = os.environ.get("GROQ_MODEL") or DEFAULT_MODEL
-        text, err = write_brief(groq_completer(key, model), facts, news, now)
+        def log_reject(rejected: str, bad: list[str]) -> None:
+            # Yalnız logda (cron_brief.log) — Telegram-a getmir; diaqnostika üçün
+            print(f"RƏDD EDİLDİ (rəqəmlər: {', '.join(bad)}):\n{rejected}\n", file=sys.stderr)
+
+        text, err = write_brief(groq_completer(key, model), facts, news, now, on_reject=log_reject)
     else:
         text, err = None, "GROQ_API_KEY təyin edilməyib"
     message = compose_message(facts, now, text, err)
