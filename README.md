@@ -1,3 +1,30 @@
+# AI Trader — Automated Crypto Trading System
+
+Rule-based trading strategies for the Binance spot market, protected by a strict risk-management module. The project follows a research-driven process: in-sample / out-of-sample split, comparison against a buy-and-hold baseline, and an explicit GO / NO-GO decision at every phase.
+
+## Key features
+- **Freqtrade-based strategies** (`user_data/strategies/`)
+- **Risk module** — maximum risk per trade, daily loss limit and kill switch; it can veto the strategy, never the other way round
+- **Backtesting and out-of-sample evaluation** tools (`tools/`)
+- **Paper trading** mode with a virtual balance — no real money
+- **Tests** that catch unauthorised configuration changes
+
+## Safety principles
+Spot market only — no leverage, futures or margin. Risk limits can only be changed by a human.
+
+## Tech stack
+Python · Freqtrade · Docker Compose · pytest
+
+## Getting started
+```bash
+docker compose up -d
+```
+Details: [DEPLOY.md](DEPLOY.md)
+
+---
+
+## Azərbaycan dilində
+
 # AI Trader — kripto üçün avtomatik ticarət sistemi
 
 Binance spot bazarı üçün qayda əsaslı ticarət strategiyaları və sərt risk idarəetmə
